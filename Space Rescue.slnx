@@ -1,0 +1,7 @@
+<Solution>
+  <Configurations>
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Project Path="Space Rescue/Space Rescue.vcxproj" Id="a0637179-418b-40dd-a643-81bf3438260a" />
+</Solution>
