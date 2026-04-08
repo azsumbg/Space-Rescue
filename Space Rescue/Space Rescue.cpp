@@ -60,9 +60,9 @@ D2D1_RECT_F b1Rect{ 50.0f, 5.0f, scr_width / 3.0f - 50.0f, 45.0f };
 D2D1_RECT_F b2Rect{ scr_width / 3.0f + 50.0f, 5.0f, scr_width * 2.0f / 3.0f - 50.0f, 45.0f };
 D2D1_RECT_F b3Rect{ scr_width * 2.0f / 3.0f + 50.0f, 5.0f, scr_width - 50.0f, 45.0f };
 
-D2D1_RECT_F b1txtRect{ 80.0f, 10.0f, scr_width / 3.0f - 50.0f, 45.0f };
-D2D1_RECT_F b2txtRect{ scr_width / 3.0f + 80.0f, 10.0f, scr_width * 2.0f / 3.0f - 50.0f, 45.0f };
-D2D1_RECT_F b3txtRect{ scr_width * 2.0f / 3.0f + 80.0f, 10.0f, scr_width - 50.0f, 45.0f };
+D2D1_RECT_F b1txtRect{ 80.0f, 15.0f, scr_width / 3.0f - 50.0f, 45.0f };
+D2D1_RECT_F b2txtRect{ scr_width / 3.0f + 80.0f, 15.0f, scr_width * 2.0f / 3.0f - 50.0f, 45.0f };
+D2D1_RECT_F b3txtRect{ scr_width * 2.0f / 3.0f + 70.0f, 15.0f, scr_width - 50.0f, 45.0f };
 
 bool pause = false;
 bool show_help = false;
@@ -145,8 +145,11 @@ dll::HERO* Hero{ nullptr };
 
 dirs nature_dir = dirs::stop;
 
+bool need_field_left = false;
+bool need_field_right = false;
 
-
+bool need_ground_left = false;
+bool need_ground_right = false;
 
 ///////////////////////////////////////////////////////////////
 
@@ -252,6 +255,12 @@ void InitGame()
 
 	wcscpy_s(current_player, L"TARLYO");
 	name_set = false;
+
+	need_field_left = false;
+	need_field_right = false;
+
+	need_ground_left = false;
+	need_ground_right = false;
 
 	if (!FreeMem(&Hero))LogErr(L"Error freeing memory for Hero !");
 
@@ -492,9 +501,31 @@ LRESULT CALLBACK WinProc(HWND hwnd, UINT ReceivedMsg, WPARAM wParam, LPARAM lPar
 		}
 		break;
 
+	case WM_KEYDOWN:
+		if (pause || !Hero)break;
+		switch (LOWORD(wParam))
+		{
+		case VK_LEFT:
+			Hero->dir = dirs::left;
+			Hero->move((float)(level));
+			break;
 
+		case VK_RIGHT:
+			Hero->dir = dirs::right;
+			Hero->move((float)(level));
+			break;
 
+		case VK_UP:
+			Hero->dir = dirs::up;
+			Hero->move((float)(level));
+			break;
 
+		case VK_DOWN:
+			Hero->dir = dirs::down;
+			Hero->move((float)(level));
+			break;
+		}
+		break;
 
 
 
@@ -951,8 +982,64 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 		{
 			if (Hero->dir == dirs::right)nature_dir = dirs::left;
 			else if (Hero->dir == dirs::left)nature_dir = dirs::right;
-			else nature_dir = dirs::stop;
 		}
+
+		if (!vGrounds.empty())
+		{
+			for (std::vector<dll::FIELDS*>::iterator field = vGrounds.begin(); field < vGrounds.end(); ++field)
+			{
+				if (!(*field)->move(nature_dir, (float)(level)))
+				{
+					if (nature_dir == dirs::left)need_ground_right = true;
+					else need_ground_left = true;
+					(*field)->Release();
+					vGrounds.erase(field);
+					break;
+				}
+			}
+		}
+		if (need_ground_left)
+		{
+			float sx = (*vGrounds.begin())->start.x - scr_width;
+
+			vGrounds.insert(vGrounds.begin(), dll::FIELDS::create(assets::ground,sx, scr_height - 100.0f));
+			need_ground_left = false;
+		}
+		if (need_ground_right)
+		{
+			float sx = vGrounds.back()->end.x;
+			vGrounds.push_back(dll::FIELDS::create(assets::ground, sx, scr_height - 100.0f));
+			need_ground_right = false;
+		}
+
+		if (!vFields.empty())
+		{
+			for (std::vector<dll::FIELDS*>::iterator field = vFields.begin(); field < vFields.end(); ++field)
+			{
+				if (!(*field)->move(nature_dir, (float)(level)))
+				{
+					if (nature_dir == dirs::left)need_field_right = true;
+					else need_field_left = true;
+					(*field)->Release();
+					vFields.erase(field);
+					break;
+				}
+			}
+		}
+		if (need_field_left)
+		{
+			float sx = (*vFields.begin())->start.x - scr_width;
+			vFields.insert(vFields.begin(), dll::FIELDS::create(assets::field, sx, 50.0f));
+			need_field_left = false;
+		}
+		if (need_field_right)
+		{
+			float sx = vFields.back()->end.x;
+
+			vFields.push_back(dll::FIELDS::create(assets::field, sx, 50.0f));
+			need_field_right = false;
+		}
+
 
 
 		// DRAW THINGS ***************************************************
@@ -988,7 +1075,11 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 
 		if (Hero)
 		{
-			if (Hero->dir == dirs::left)
+			dirs hero_show_dir{ dirs::stop };
+			if (Hero->dir == dirs::right || Hero->dir == dirs::stop)hero_show_dir = dirs::right;
+			else if (Hero->dir == dirs::left)hero_show_dir = dirs::left;
+
+			if (hero_show_dir == dirs::left)
 			{
 				int frame = Hero->get_frame();
 				Draw->DrawBitmap(bmpHeroL[frame], Resizer(bmpHeroL[frame], Hero->start.x, Hero->start.y));
