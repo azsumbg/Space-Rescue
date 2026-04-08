@@ -141,6 +141,8 @@ std::vector<dll::FIELDS*> vGrounds;
 
 std::vector<dll::BONUS> vBonuses;
 
+std::vector<dll::ASSETS*>vCivilians;
+
 dll::HERO* Hero{ nullptr };
 
 dirs nature_dir = dirs::stop;
@@ -262,7 +264,8 @@ void InitGame()
 	need_ground_left = false;
 	need_ground_right = false;
 
-	if (!FreeMem(&Hero))LogErr(L"Error freeing memory for Hero !");
+	if (Hero)
+		if (!FreeMem(&Hero))LogErr(L"Error freeing memory for Hero !");
 
 	if (!vFields.empty())for (int i = 0; i < vFields.size(); ++i)if (!FreeMem(&vFields[i]))
 		LogErr(L"Error freeing memory for vFields element !");
@@ -271,6 +274,10 @@ void InitGame()
 	if (!vGrounds.empty())for (int i = 0; i < vGrounds.size(); ++i)if (!FreeMem(&vGrounds[i]))
 		LogErr(L"Error freeing memory for vGrounds element !");
 	vGrounds.clear();
+
+	if (!vCivilians.empty())for (int i = 0; i < vCivilians.size(); ++i)if (!FreeMem(&vCivilians[i]))
+		LogErr(L"Error freeing memory for vCivilians element !");
+	vCivilians.clear();
 
 	vBonuses.clear();
 
@@ -1040,8 +1047,23 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 			need_field_right = false;
 		}
 
+		if (vCivilians.size() <= 5 && RandIt(0, 300) == 6)
+			vCivilians.push_back(dll::ASSETS::create(assets::civilian, scr_width + RandIt(50.0f, 200.0f), scr_height - 180.0f));
 
+		if (!vCivilians.empty())
+		{
+			for (std::vector<dll::ASSETS*>::iterator civil = vCivilians.begin(); civil < vCivilians.end(); ++civil)
+			{
+				if (!(*civil)->move(nature_dir, (float)(level)))
+				{
+					(*civil)->Release();
+					vCivilians.erase(civil);
+					break;
+				}
+			}
+		}
 
+		
 		// DRAW THINGS ***************************************************
 
 		Draw->BeginDraw();
@@ -1091,6 +1113,14 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 			}
 		}
 
+		if (!vCivilians.empty())
+		{
+			for (int i = 0; i < vCivilians.size(); ++i)
+			{
+				int frame = vCivilians[i]->get_frame();
+				Draw->DrawBitmap(bmpCivil[frame], Resizer(bmpCivil[frame], vCivilians[i]->start.x, vCivilians[i]->start.y));
+			}
+		}
 
 		/////////////////////////
 
