@@ -457,7 +457,7 @@ namespace dll
 	class RESCUEDLL_API SHOTS :public PROTON
 	{
 	private:
-		float _speed = 5.0f;
+		float _speed = 2.0f;
 
 		SHOTS(float _first_x, float _first_y, float _end_x, float _end_y);
 
@@ -492,8 +492,7 @@ namespace dll
 
 	class RESCUEDLL_API GUN :public PROTON
 	{
-		int max_delay = 100;
-		int delay = 100;
+		int delay = 40;
 
 		int frame_delay = 13;
 		int frame = 0;

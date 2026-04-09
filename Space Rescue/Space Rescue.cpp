@@ -117,6 +117,7 @@ ID2D1Bitmap* bmpPoints{ nullptr };
 ID2D1Bitmap* bmpRepair{ nullptr };
 ID2D1Bitmap* bmpShield{ nullptr };
 ID2D1Bitmap* bmpGun{ nullptr };
+ID2D1Bitmap* bmpBomb{ nullptr };
 
 ID2D1Bitmap* bmpCivil[17]{ nullptr };
 
@@ -144,6 +145,10 @@ std::vector<dll::BONUS> vBonuses;
 std::vector<dll::ASSETS*>vCivilians;
 
 std::vector<dll::GUN*> vGuns;
+
+std::vector<dll::SHOTS*>vEvilShots;
+
+std::vector<dll::SHOTS*>vBombs;
 
 dll::HERO* Hero{ nullptr };
 
@@ -202,6 +207,7 @@ void ClearResources()
 	if (!FreeMem(&bmpLevel))LogErr(L"Error releasing main D2D1 bmpLevel !");
 
 	if (!FreeMem(&bmpBullet))LogErr(L"Error releasing main D2D1 bmpBullet !");
+	if (!FreeMem(&bmpBomb))LogErr(L"Error releasing main D2D1 bmpBomb !");
 	if (!FreeMem(&bmpField))LogErr(L"Error releasing main D2D1 bmpField !");
 	if (!FreeMem(&bmpGround))LogErr(L"Error releasing main D2D1 bmpGround !");
 
@@ -284,6 +290,14 @@ void InitGame()
 	if (!vGuns.empty())for (int i = 0; i < vGuns.size(); ++i)if (!FreeMem(&vGuns[i]))
 		LogErr(L"Error freeing memory for vGuns element !");
 	vGuns.clear();
+
+	if (!vBombs.empty())for (int i = 0; i < vBombs.size(); ++i)if (!FreeMem(&vBombs[i]))
+		LogErr(L"Error freeing memory for vBombs element !");
+	vBombs.clear();
+
+	if (!vEvilShots.empty())for (int i = 0; i < vEvilShots.size(); ++i)if (!FreeMem(&vEvilShots[i]))
+		LogErr(L"Error freeing memory for vEvilShots element !");
+	vEvilShots.clear();
 
 	vBonuses.clear();
 
@@ -535,6 +549,28 @@ LRESULT CALLBACK WinProc(HWND hwnd, UINT ReceivedMsg, WPARAM wParam, LPARAM lPar
 			Hero->dir = dirs::down;
 			Hero->move((float)(level));
 			break;
+
+		case VK_SPACE:
+			switch (Hero->dir)
+			{
+			case dirs::up:
+				vBombs.push_back(dll::SHOTS::create(Hero->center.x, Hero->center.y, Hero->center.x, scr_height));
+				break;
+
+			case dirs::down:
+				vBombs.push_back(dll::SHOTS::create(Hero->center.x, Hero->center.y, Hero->center.x, scr_height));
+				break;
+
+			case dirs::left:
+				vBombs.push_back(dll::SHOTS::create(Hero->center.x, Hero->center.y, Hero->center.x - 150.0f, scr_height));
+				break;
+
+			case dirs::right:
+				vBombs.push_back(dll::SHOTS::create(Hero->center.x, Hero->center.y, Hero->center.x + 150.0f, scr_height));
+				break;
+			}
+			vBombs.back()->damage = 50;
+			break;
 		}
 		break;
 
@@ -731,6 +767,12 @@ void CreateResources()
 			if (!bmpGun)
 			{
 				LogErr(L"Error loading bmpGun !");
+				ErrExit(eD2D);
+			}
+			bmpBomb = Load(L".\\res\\img\\bomb.png", Draw);
+			if (!bmpBomb)
+			{
+				LogErr(L"Error loading bmpBomb !");
 				ErrExit(eD2D);
 			}
 
@@ -1119,6 +1161,49 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 			}
 		}
 
+		if (!vGuns.empty() && Hero)
+		{
+			for (int i = 0; i < vGuns.size(); ++i)
+			{
+				if (dll::Distance(vGuns[i]->center, Hero->center) <= 300.0f)
+				{
+					int damage = vGuns[i]->attack();
+					
+					if (damage > 0)
+					{
+						vEvilShots.push_back(dll::SHOTS::create(vGuns[i]->center.x, vGuns[i]->center.y,
+							Hero->center.x, Hero->center.y));
+						vEvilShots.back()->damage = damage;
+					}
+				}
+			}
+		}
+
+		if (!vEvilShots.empty())
+		{
+			for (std::vector<dll::SHOTS*>::iterator shot = vEvilShots.begin(); shot < vEvilShots.end(); ++shot)
+			{
+				if (!(*shot)->move((float)(level)))
+				{
+					(*shot)->Release();
+					vEvilShots.erase(shot);
+					break;
+				}
+			}
+		}
+
+		if (!vBombs.empty())
+		{
+			for (std::vector<dll::SHOTS*>::iterator shot = vBombs.begin(); shot < vBombs.end(); ++shot)
+			{
+				if (!(*shot)->move((float)(level)))
+				{
+					(*shot)->Release();
+					vBombs.erase(shot);
+					break;
+				}
+			}
+		}
 
 		// DRAW THINGS ***************************************************
 
@@ -1185,6 +1270,20 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 				int frame = vGuns[i]->get_frame();
 				Draw->DrawBitmap(bmpCannon[frame], Resizer(bmpCannon[frame], vGuns[i]->start.x, vGuns[i]->start.y));
 			}
+		}
+
+		if (!vEvilShots.empty())
+		{
+			for (int i = 0; i < vEvilShots.size(); ++i)
+				Draw->DrawBitmap(bmpBullet, D2D1::RectF(vEvilShots[i]->start.x, vEvilShots[i]->start.y,
+					vEvilShots[i]->end.x, vEvilShots[i]->end.y));
+		}
+
+		if (!vBombs.empty())
+		{
+			for (int i = 0; i < vBombs.size(); ++i)
+				Draw->DrawBitmap(bmpBomb, D2D1::RectF(vBombs[i]->start.x, vBombs[i]->start.y,
+					vBombs[i]->end.x, vBombs[i]->end.y));
 		}
 
 		/////////////////////////
