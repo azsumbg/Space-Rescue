@@ -50,6 +50,7 @@ struct RESCUEDLL_API EXPLOSION
 	float x{ 0 };
 	float y{ 0 };
 
+	int frame = 0;
 	int max_frames = 23;
 	int frame_delay = 3;
 	int max_frame_delay = 3;
@@ -482,7 +483,8 @@ namespace dll
 
 	public:
 		meteors type{ meteors::big };
-		
+		int lifes = 200;
+
 		bool move(float gear);
 
 		void Release();
@@ -492,6 +494,7 @@ namespace dll
 
 	class RESCUEDLL_API GUN :public PROTON
 	{
+	private:
 		int delay = 120;
 
 		int frame_delay = 13;
@@ -502,6 +505,7 @@ namespace dll
 		GUN(float _sx, float _sy);
 
 	public:
+		int lifes = 100;
 		int damage = 20;
 
 		bool move(dirs dir, float gear);

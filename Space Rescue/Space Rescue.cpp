@@ -152,6 +152,8 @@ std::vector<dll::SHOTS*>vMyShots;
 
 std::vector<dll::SHOTS*>vBombs;
 
+std::vector<EXPLOSION> vExplosions;
+
 dll::HERO* Hero{ nullptr };
 
 dirs nature_dir = dirs::stop;
@@ -302,6 +304,7 @@ void InitGame()
 	vEvilShots.clear();
 
 	vBonuses.clear();
+	vExplosions.clear();
 
 	for (float i = -scr_width; i < 2.0f * scr_width; i += scr_width)vFields.push_back(dll::FIELDS::create(assets::field, i, 50.0f));
 	for (float i = -scr_width; i < 2.0f * scr_width; i += scr_width)
@@ -1245,6 +1248,39 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 			}
 		}
 
+		if (!vBombs.empty() && !vGuns.empty())
+		{
+			for (std::vector<dll::GUN*>::iterator gun = vGuns.begin(); gun < vGuns.end(); ++gun)
+			{
+				bool killed = false;
+
+				for (std::vector<dll::SHOTS*>::iterator shot = vBombs.begin(); shot < vBombs.end(); ++shot)
+				{
+					if (dll::Intersect((*gun)->center, (*shot)->center, (*gun)->x_rad, (*shot)->x_rad,
+						(*gun)->y_rad, (*shot)->y_rad))
+					{
+						(*gun)->lifes -= (*shot)->damage;
+						(*shot)->Release();
+						vBombs.erase(shot);
+
+						if ((*gun)->lifes <= 0)
+						{
+							if (sound)mciSendString(L"play .\\res\\snd\\boom.wav", NULL, NULL, NULL);
+							killed = true;
+							vExplosions.push_back(EXPLOSION((*gun)->center.x, (*gun)->start.y));
+							(*gun)->Release();
+							vGuns.erase(gun);
+						}
+
+						break;
+					}
+				}
+
+				if (killed)break;
+			}
+		}
+
+
 		// DRAW THINGS ***************************************************
 
 		Draw->BeginDraw();
@@ -1331,6 +1367,25 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 			for (int i = 0; i < vBombs.size(); ++i)
 				Draw->DrawBitmap(bmpBomb, D2D1::RectF(vBombs[i]->start.x, vBombs[i]->start.y,
 					vBombs[i]->end.x, vBombs[i]->end.y));
+		}
+
+		if (!vExplosions.empty())
+		{
+			for (std::vector<EXPLOSION>::iterator expl = vExplosions.begin(); expl < vExplosions.end(); ++expl)
+			{
+				--expl->frame_delay;
+				if (expl->frame_delay <= 0)
+				{
+					expl->frame_delay = expl->max_frame_delay;
+					++expl->frame;
+					if (expl->frame > expl->max_frames)
+					{
+						vExplosions.erase(expl);
+						break;
+					}
+				}
+				Draw->DrawBitmap(bmpExplosion[expl->frame], Resizer(bmpExplosion[expl->frame], expl->x, expl->y));
+			}
 		}
 
 		/////////////////////////
