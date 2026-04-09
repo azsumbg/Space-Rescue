@@ -459,7 +459,7 @@ namespace dll
 	private:
 		float _speed = 2.0f;
 
-		SHOTS(float _first_x, float _first_y, float _end_x, float _end_y);
+		SHOTS(float _first_x, float _first_y, float _end_x, float _end_y, bool _is_bomb);
 
 	public:
 		int damage = 10;
@@ -468,7 +468,7 @@ namespace dll
 
 		void Release();
 
-		static SHOTS* create(float first_x, float first_y, float end_x, float end_y);
+		static SHOTS* create(float first_x, float first_y, float end_x, float end_y, bool is_bomb);
 	};
 
 	class RESCUEDLL_API METEORS :public PROTON
@@ -492,7 +492,7 @@ namespace dll
 
 	class RESCUEDLL_API GUN :public PROTON
 	{
-		int delay = 40;
+		int delay = 120;
 
 		int frame_delay = 13;
 		int frame = 0;
@@ -502,7 +502,7 @@ namespace dll
 		GUN(float _sx, float _sy);
 
 	public:
-		int damage = 50;
+		int damage = 20;
 
 		bool move(dirs dir, float gear);
 

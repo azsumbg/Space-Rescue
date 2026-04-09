@@ -148,6 +148,8 @@ std::vector<dll::GUN*> vGuns;
 
 std::vector<dll::SHOTS*>vEvilShots;
 
+std::vector<dll::SHOTS*>vMyShots;
+
 std::vector<dll::SHOTS*>vBombs;
 
 dll::HERO* Hero{ nullptr };
@@ -554,22 +556,46 @@ LRESULT CALLBACK WinProc(HWND hwnd, UINT ReceivedMsg, WPARAM wParam, LPARAM lPar
 			switch (Hero->dir)
 			{
 			case dirs::up:
-				vBombs.push_back(dll::SHOTS::create(Hero->center.x, Hero->center.y, Hero->center.x, scr_height));
+				vBombs.push_back(dll::SHOTS::create(Hero->center.x, Hero->center.y, Hero->center.x, scr_height, true));
 				break;
 
 			case dirs::down:
-				vBombs.push_back(dll::SHOTS::create(Hero->center.x, Hero->center.y, Hero->center.x, scr_height));
+				vBombs.push_back(dll::SHOTS::create(Hero->center.x, Hero->center.y, Hero->center.x, scr_height, true));
 				break;
 
 			case dirs::left:
-				vBombs.push_back(dll::SHOTS::create(Hero->center.x, Hero->center.y, Hero->center.x - 150.0f, scr_height));
+				vBombs.push_back(dll::SHOTS::create(Hero->center.x, Hero->center.y, Hero->center.x - 150.0f, scr_height, true));
 				break;
 
 			case dirs::right:
-				vBombs.push_back(dll::SHOTS::create(Hero->center.x, Hero->center.y, Hero->center.x + 150.0f, scr_height));
+				vBombs.push_back(dll::SHOTS::create(Hero->center.x, Hero->center.y, Hero->center.x + 150.0f, scr_height, true));
 				break;
 			}
+			if (sound)mciSendString(L"play .\\res\\snd\\bomb.wav", NULL, NULL, NULL);
 			vBombs.back()->damage = 50;
+			break;
+
+		case VK_SHIFT:
+			switch (Hero->dir)
+			{
+			case dirs::up:
+				vMyShots.push_back(dll::SHOTS::create(Hero->center.x, Hero->center.y, scr_width, Hero->center.y, false));
+				break;
+
+			case dirs::down:
+				vMyShots.push_back(dll::SHOTS::create(Hero->center.x, Hero->center.y, scr_width, Hero->center.y, false));
+				break;
+
+			case dirs::left:
+				vMyShots.push_back(dll::SHOTS::create(Hero->center.x, Hero->center.y, 0, Hero->center.y, false));
+				break;
+
+			case dirs::right:
+				vMyShots.push_back(dll::SHOTS::create(Hero->center.x, Hero->center.y, scr_width, Hero->center.y, false));
+				break;
+			}
+			if (sound)mciSendString(L"play .\\res\\snd\\laser.wav", NULL, NULL, NULL);
+			vMyShots.back()->damage = Hero->damage;
 			break;
 		}
 		break;
@@ -1171,8 +1197,9 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 					
 					if (damage > 0)
 					{
+						if (sound)mciSendString(L"play .\\res\\snd\\laser.wav", NULL, NULL, NULL);
 						vEvilShots.push_back(dll::SHOTS::create(vGuns[i]->center.x, vGuns[i]->center.y,
-							Hero->center.x, Hero->center.y));
+							Hero->center.x, Hero->center.y, false));
 						vEvilShots.back()->damage = damage;
 					}
 				}
@@ -1187,6 +1214,19 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 				{
 					(*shot)->Release();
 					vEvilShots.erase(shot);
+					break;
+				}
+			}
+		}
+
+		if (!vMyShots.empty())
+		{
+			for (std::vector<dll::SHOTS*>::iterator shot = vMyShots.begin(); shot < vMyShots.end(); ++shot)
+			{
+				if (!(*shot)->move((float)(level)))
+				{
+					(*shot)->Release();
+					vMyShots.erase(shot);
 					break;
 				}
 			}
@@ -1277,6 +1317,13 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 			for (int i = 0; i < vEvilShots.size(); ++i)
 				Draw->DrawBitmap(bmpBullet, D2D1::RectF(vEvilShots[i]->start.x, vEvilShots[i]->start.y,
 					vEvilShots[i]->end.x, vEvilShots[i]->end.y));
+		}
+
+		if (!vMyShots.empty())
+		{
+			for (int i = 0; i < vMyShots.size(); ++i)
+				Draw->DrawBitmap(bmpBullet, D2D1::RectF(vMyShots[i]->start.x, vMyShots[i]->start.y,
+					vMyShots[i]->end.x, vMyShots[i]->end.y));
 		}
 
 		if (!vBombs.empty())
