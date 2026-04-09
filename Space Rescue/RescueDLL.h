@@ -608,5 +608,10 @@ namespace dll
 	
 	RESCUEDLL_API int IntroFrame();
 
+	RESCUEDLL_API bool Intersect(FPOINT first_center, FPOINT second_center, float first_xrad, float second_xrad,
+		float first_yrad, float second_yrad);
+
+	RESCUEDLL_API bool Intersect(FRECT first, FRECT second);
+
 	RESCUEDLL_API todo AINextMove(EVIL& my_unit, BAG<FPOINT>& civils, BAG<FPOINT>& shots, BAG<FPOINT>& powerups, FPOINT hero);
 }

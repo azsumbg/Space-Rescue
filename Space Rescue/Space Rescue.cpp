@@ -143,6 +143,8 @@ std::vector<dll::BONUS> vBonuses;
 
 std::vector<dll::ASSETS*>vCivilians;
 
+std::vector<dll::GUN*> vGuns;
+
 dll::HERO* Hero{ nullptr };
 
 dirs nature_dir = dirs::stop;
@@ -279,9 +281,11 @@ void InitGame()
 		LogErr(L"Error freeing memory for vCivilians element !");
 	vCivilians.clear();
 
+	if (!vGuns.empty())for (int i = 0; i < vGuns.size(); ++i)if (!FreeMem(&vGuns[i]))
+		LogErr(L"Error freeing memory for vGuns element !");
+	vGuns.clear();
+
 	vBonuses.clear();
-
-
 
 	for (float i = -scr_width; i < 2.0f * scr_width; i += scr_width)vFields.push_back(dll::FIELDS::create(assets::field, i, 50.0f));
 	for (float i = -scr_width; i < 2.0f * scr_width; i += scr_width)
@@ -1063,7 +1067,59 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 			}
 		}
 
-		
+		if (vGuns.size() <= 3 + level && RandIt(0, 500) == 66)
+		{
+			dll::GUN* a_gun = dll::GUN::create(scr_width + RandIt(10.0f, 100.0f), scr_height - 120.0f);
+
+			bool is_ok = true;
+
+			if (!vCivilians.empty())
+			{
+				for (int i = 0; i < vCivilians.size(); ++i)
+				{
+					FRECT GunR{ a_gun->start.x,a_gun->start.y,a_gun->end.x,a_gun->end.y };
+					FRECT CivR{ vCivilians[i]->start.x,vCivilians[i]->start.y,vCivilians[i]->end.x,vCivilians[i]->end.y };
+
+					if (dll::Intersect(GunR, CivR))
+					{
+						is_ok = false;
+						break;
+					}
+				}
+			}
+
+			if (is_ok && !vGuns.empty())
+			{
+				for (int i = 0; i < vGuns.size(); ++i)
+				{
+					FRECT NewR{ a_gun->start.x,a_gun->start.y,a_gun->end.x,a_gun->end.y };
+					FRECT GunR{ vGuns[i]->start.x,vGuns[i]->start.y,vGuns[i]->end.x,vGuns[i]->end.y };
+
+					if (dll::Intersect(NewR, GunR))
+					{
+						is_ok = false;
+						break;
+					}
+				}
+			}
+
+			if (is_ok)vGuns.push_back(a_gun);
+		}
+
+		if (!vGuns.empty())
+		{
+			for (std::vector<dll::GUN*>::iterator gun = vGuns.begin(); gun < vGuns.end(); ++gun)
+			{
+				if (!(*gun)->move(nature_dir, (float)(level)))
+				{
+					(*gun)->Release();
+					vGuns.erase(gun);
+					break;
+				}
+			}
+		}
+
+
 		// DRAW THINGS ***************************************************
 
 		Draw->BeginDraw();
@@ -1119,6 +1175,15 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 			{
 				int frame = vCivilians[i]->get_frame();
 				Draw->DrawBitmap(bmpCivil[frame], Resizer(bmpCivil[frame], vCivilians[i]->start.x, vCivilians[i]->start.y));
+			}
+		}
+
+		if (!vGuns.empty())
+		{
+			for (int i = 0; i < vGuns.size(); ++i)
+			{
+				int frame = vGuns[i]->get_frame();
+				Draw->DrawBitmap(bmpCannon[frame], Resizer(bmpCannon[frame], vGuns[i]->start.x, vGuns[i]->start.y));
 			}
 		}
 
