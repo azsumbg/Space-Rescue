@@ -80,6 +80,7 @@ wchar_t current_player[16]{ L"TARLYO" };
 int level = 1;
 int score = 0;
 float distance = 600;
+int civs_saved = 0;
 
 float scale_x{ 0 };
 float scale_y{ 0 };
@@ -264,6 +265,9 @@ void InitGame()
 	bTimer = 0;
 	level = 1;
 	score = 0;
+
+
+	civs_saved = 0;
 
 	distance = 600;
 
@@ -1248,6 +1252,28 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 			}
 		}
 
+		if (Hero && !vCivilians.empty())
+		{
+			for (std::vector<dll::ASSETS*>::iterator civ = vCivilians.begin(); civ < vCivilians.end(); ++civ)
+			{
+				FRECT HeroR{ Hero->start.x,Hero->start.y,Hero->end.x,Hero->end.y };
+				FRECT civR{ (*civ)->start.x,(*civ)->start.y,(*civ)->end.x,(*civ)->end.y };
+
+				if (dll::Intersect(HeroR, civR))
+				{
+					if (sound)mciSendString(L"play .\\res\\snd\\warp.snd", NULL, NULL, NULL);
+					score += 30 + level;
+					(*civ)->Release();
+					vCivilians.erase(civ);
+					civs_saved++;
+					break;
+				}
+
+			}
+		}
+
+		// BATTLE *************************************
+
 		if (!vBombs.empty() && !vGuns.empty())
 		{
 			for (std::vector<dll::GUN*>::iterator gun = vGuns.begin(); gun < vGuns.end(); ++gun)
@@ -1267,6 +1293,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 						{
 							if (sound)mciSendString(L"play .\\res\\snd\\boom.wav", NULL, NULL, NULL);
 							killed = true;
+							score += 20 + level;
 							vExplosions.push_back(EXPLOSION((*gun)->center.x, (*gun)->start.y));
 							(*gun)->Release();
 							vGuns.erase(gun);
