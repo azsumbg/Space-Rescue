@@ -74,6 +74,7 @@ bool b3hglt = false;
 
 bool name_set = false;
 bool hero_killed = false;
+bool level_skipped = false;
 
 wchar_t current_player[16]{ L"TARLYO" };
 
@@ -81,6 +82,7 @@ int level = 1;
 int score = 0;
 float distance = 600;
 int civs_saved = 0;
+int civs_needed = 20;
 
 float scale_x{ 0 };
 float scale_y{ 0 };
@@ -273,7 +275,8 @@ void InitGame()
 	level = 1;
 	score = 0;
 
-
+	level_skipped = false;
+	civs_needed = 20;
 	civs_saved = 0;
 
 	distance = 600;
@@ -337,6 +340,13 @@ void InitGame()
 
 
 
+}
+void LevelUp()
+{
+	if (!level_skipped)
+	{
+
+	}
 }
 
 
@@ -544,7 +554,8 @@ LRESULT CALLBACK WinProc(HWND hwnd, UINT ReceivedMsg, WPARAM wParam, LPARAM lPar
 				pause = false;
 				break;
 			}
-			//LevelUp();
+			level_skipped = true;
+			LevelUp();
 			break;
 
 		case mExit:
@@ -1935,9 +1946,69 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 			else Draw->DrawTextW(L"ПОМОЩ ЗА ИГРАТА", 16, nrmFormat, b3txtRect, hgltBrush);
 		}
 
+		// STATUS TEXT **********
+
+		if (midFormat && nrmFormat && hgltBrush && Hero)
+		{
+			wchar_t stat_txt[200]{ L"\0"};
+			wchar_t add[5]{ L"\0" };
+			int stat_size = 0;
+
+			swprintf_s(stat_txt, 200, L"остават: %.2f", distance / 10.0f);
+
+			for (int i = 0; i < 200; i++)
+			{
+				if (stat_txt[i] != '\0')++stat_size;
+				else break;
+			}
+
+			Draw->DrawTextW(stat_txt, stat_size, midFormat, D2D1::RectF(scr_width - 250.0f, 60.0f, scr_width, sky + 200.0f),
+				hgltBrush);
+
+			stat_size = 0;
+
+			wcscpy_s(stat_txt, L"капитан: ");
+			wcscat_s(stat_txt, current_player);
+
+			wcscat_s(stat_txt, L", броня: ");
+			wsprintf(add, L"%d", Hero->armor);
+			wcscat_s(stat_txt, add);
+
+			wcscat_s(stat_txt, L", оръдие: ");
+			wsprintf(add, L"%d", Hero->damage);
+			wcscat_s(stat_txt, add);
+
+			wcscat_s(stat_txt, L", ниво: ");
+			wsprintf(add, L"%d", level);
+			wcscat_s(stat_txt, add);
+
+			wcscat_s(stat_txt, L", резултат: ");
+			wsprintf(add, L"%d", score);
+			wcscat_s(stat_txt, add);
+
+			wcscat_s(stat_txt, L", спасени: ");
+			wsprintf(add, L"%d", civs_saved);
+			wcscat_s(stat_txt, add);
+
+			wcscat_s(stat_txt, L", за спасяване: ");
+			wsprintf(add, L"%d", civs_needed);
+			wcscat_s(stat_txt, add);
+
+			for (int i = 0; i < 200; i++)
+			{
+				if (stat_txt[i] != '\0')++stat_size;
+				else break;
+			}
+
+			Draw->DrawTextW(stat_txt, stat_size, nrmFormat, D2D1::RectF(10.0f, ground + 60.0f, scr_width, scr_height), hgltBrush);
+		}
+
+
 		Draw->EndDraw();
 	
 		if (vExplosions.empty() && hero_killed)GameOver();
+	
+		if (civs_saved >= civs_needed && distance <= 0)LevelUp();
 	}
 
 	ClearResources();
