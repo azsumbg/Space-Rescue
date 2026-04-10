@@ -1615,6 +1615,123 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 			}
 		}
 
+		if (!vMeteors.empty() && !vMyShots.empty())
+		{
+			for (std::vector<dll::METEORS*>::iterator evil = vMeteors.begin(); evil < vMeteors.end(); ++evil)
+			{
+				bool killed = false;
+
+				for (std::vector<dll::SHOTS*>::iterator shot = vMyShots.begin(); shot < vMyShots.end(); ++shot)
+				{
+					if (dll::Intersect((*evil)->center, (*shot)->center, (*evil)->x_rad, (*shot)->x_rad,
+						(*evil)->y_rad, (*shot)->y_rad))
+					{
+						(*evil)->lifes -= (*shot)->damage;
+						if (sound)mciSendString(L"play .\\res\\snd\\evildamage.wav", NULL, NULL, NULL);
+						(*shot)->Release();
+						vMyShots.erase(shot);
+
+						if ((*evil)->lifes <= 0)
+						{
+							vExplosions.push_back(EXPLOSION((*evil)->center.x, (*evil)->center.y));
+							if (RandIt(0, 3) == 1)vPowerups.push_back(dll::ASSETS::create(assets::supply, (*evil)->center.x,
+								(*evil)->center.y));
+							(*evil)->Release();
+							vMeteors.erase(evil);
+							score += 10 + level;
+							killed = true;
+						}
+						break;
+					}
+				}
+
+				if (killed)break;
+			}
+		}
+
+		if (!vMeteors.empty() && !vBombs.empty())
+		{
+			for (std::vector<dll::METEORS*>::iterator evil = vMeteors.begin(); evil < vMeteors.end(); ++evil)
+			{
+				bool killed = false;
+
+				for (std::vector<dll::SHOTS*>::iterator shot = vBombs.begin(); shot < vBombs.end(); ++shot)
+				{
+					if (dll::Intersect((*evil)->center, (*shot)->center, (*evil)->x_rad, (*shot)->x_rad,
+						(*evil)->y_rad, (*shot)->y_rad))
+					{
+						(*evil)->lifes -= (*shot)->damage;
+						if (sound)mciSendString(L"play .\\res\\snd\\evildamage.wav", NULL, NULL, NULL);
+						(*shot)->Release();
+						vBombs.erase(shot);
+
+						if ((*evil)->lifes <= 0)
+						{
+							vExplosions.push_back(EXPLOSION((*evil)->center.x, (*evil)->center.y));
+							if (RandIt(0, 3) == 1)vPowerups.push_back(dll::ASSETS::create(assets::supply, (*evil)->center.x,
+								(*evil)->center.y));
+							(*evil)->Release();
+							vMeteors.erase(evil);
+							score += 10 + level;
+							killed = true;
+						}
+						break;
+					}
+				}
+
+				if (killed)break;
+			}
+		}
+
+		if (Hero && !vMeteors.empty())
+		{
+			for (int i = 0; i < vMeteors.size(); ++i)
+			{
+				if (dll::Intersect(Hero->center, vMeteors[i]->center, Hero->x_rad, vMeteors[i]->x_rad,
+					Hero->y_rad, vMeteors[i]->y_rad))
+				{
+					if (sound)mciSendString(L"play .\\res\\snd\\boom.wav", NULL, NULL, NULL);
+					vExplosions.push_back(EXPLOSION(Hero->center.x, Hero->start.y));
+					hero_killed = true;
+					FreeMem(&Hero);
+
+					vExplosions.push_back(EXPLOSION(vMeteors[i]->center.x, vMeteors[i]->start.y));
+					FreeMem(&vMeteors[i]);
+					vMeteors.erase(vMeteors.begin() + i);
+					break;
+				}
+			}
+		}
+
+		if (!vEvils.empty() && !vMeteors.empty())
+		{
+			for (std::vector<dll::EVIL*>::iterator evil = vEvils.begin(); evil < vEvils.end(); ++evil)
+			{
+				bool killed = false;
+
+				for (int i = 0; i < vMeteors.size(); ++i)
+				{
+					if (dll::Intersect((*evil)->center, vMeteors[i]->center, (*evil)->x_rad, vMeteors[i]->x_rad,
+						(*evil)->y_rad, vMeteors[i]->y_rad))
+					{
+						if (sound)mciSendString(L"play .\\res\\snd\\boom.wav", NULL, NULL, NULL);
+						vExplosions.push_back(EXPLOSION((*evil)->center.x, (*evil)->start.y));
+						(*evil)->Release();
+						vEvils.erase(evil);
+
+						vExplosions.push_back(EXPLOSION(vMeteors[i]->center.x, vMeteors[i]->start.y));
+						FreeMem(&vMeteors[i]);
+						vMeteors.erase(vMeteors.begin() + i);
+
+						killed = true;
+						break;
+					}
+				}
+
+				if (killed)break;
+			}
+		}
+
 		// DRAW THINGS ***************************************************
 
 		Draw->BeginDraw();
