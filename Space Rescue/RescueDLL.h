@@ -582,6 +582,8 @@ namespace dll
 
 	struct RESCUEDLL_API BONUS
 	{
+		bonus what{ bonus::points };
+
 		float sx{ 0 };
 		float sy{ 0 };
 		float ex{ 32.0f };
@@ -591,9 +593,13 @@ namespace dll
 
 		void set_opacity()
 		{
-			static float duration = 3.1f;
-			duration -= 0.1f;
-			opacity = duration / 3.0f;
+			static int delay = 10;
+			--delay;
+			if (delay <= 0)
+			{
+				delay = 10;
+				opacity -= 0.1f;
+			}
 		}
 
 		void set_edges()

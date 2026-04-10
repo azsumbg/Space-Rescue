@@ -118,6 +118,7 @@ ID2D1Bitmap* bmpPoints{ nullptr };
 ID2D1Bitmap* bmpRepair{ nullptr };
 ID2D1Bitmap* bmpShield{ nullptr };
 ID2D1Bitmap* bmpGun{ nullptr };
+
 ID2D1Bitmap* bmpBomb{ nullptr };
 
 ID2D1Bitmap* bmpCivil[17]{ nullptr };
@@ -1346,14 +1347,61 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 
 				if (dll::Intersect(HeroR, civR))
 				{
-					if (sound)mciSendString(L"play .\\res\\snd\\warp.snd", NULL, NULL, NULL);
+					if (sound)mciSendString(L"play .\\res\\snd\\warp.wav", NULL, NULL, NULL);
 					score += 30 + level;
 					(*civ)->Release();
 					vCivilians.erase(civ);
 					civs_saved++;
 					break;
 				}
+			}
+		}
 
+		if (Hero && !vPowerups.empty())
+		{
+			for (std::vector<dll::ASSETS*>::iterator sup = vPowerups.begin(); sup < vPowerups.end(); ++sup)
+			{
+				FRECT HeroR{ Hero->start.x,Hero->start.y,Hero->end.x,Hero->end.y };
+				FRECT SupR{ (*sup)->start.x,(*sup)->start.y,(*sup)->end.x,(*sup)->end.y };
+
+				if (dll::Intersect(HeroR, SupR))
+				{
+					switch (RandIt(0, 3))
+					{
+					case 0:
+						vBonuses.push_back(dll::BONUS{ bonus::armor,(*sup)->center.x,(*sup)->center.y });
+						vBonuses.back().set_edges();
+						Hero->armor++;
+						if (sound)mciSendString(L"play .\\res\\snd\\upgrade.wav", NULL, NULL, NULL);
+						break;
+
+					case 1:
+						vBonuses.push_back(dll::BONUS{ bonus::repair,(*sup)->center.x,(*sup)->center.y });
+						vBonuses.back().set_edges();
+						if (Hero->lifes + 50 <= 150)Hero->lifes += 50;
+						else Hero->lifes = 150;
+						if (sound)mciSendString(L"play .\\res\\snd\\lifes.wav", NULL, NULL, NULL);
+						break;
+
+					case 2:
+						vBonuses.push_back(dll::BONUS{ bonus::gun,(*sup)->center.x,(*sup)->center.y });
+						vBonuses.back().set_edges();
+						Hero->damage += 5;
+						if (sound)mciSendString(L"play .\\res\\snd\\upgrade.wav", NULL, NULL, NULL);
+						break;
+
+					case 3:
+						vBonuses.push_back(dll::BONUS{ bonus::points,(*sup)->center.x,(*sup)->center.y });
+						vBonuses.back().set_edges();
+						score += 10 * level;
+						if (sound)mciSendString(L"play .\\res\\snd\\upgrade.wav", NULL, NULL, NULL);
+						break;
+
+					}
+					(*sup)->Release();
+					vPowerups.erase(sup);
+					break;
+				}
 			}
 		}
 
@@ -1433,6 +1481,8 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 						if ((*evil)->lifes <= 0)
 						{
 							vExplosions.push_back(EXPLOSION((*evil)->center.x, (*evil)->center.y));
+							if (RandIt(0, 3) == 1)vPowerups.push_back(dll::ASSETS::create(assets::supply, (*evil)->center.x,
+								(*evil)->center.y));
 							(*evil)->Release();
 							vEvils.erase(evil);
 							score += 10 + level;
@@ -1465,6 +1515,8 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 						if ((*evil)->lifes <= 0)
 						{
 							vExplosions.push_back(EXPLOSION((*evil)->center.x, (*evil)->center.y));
+							if (RandIt(0, 3) == 1)vPowerups.push_back(dll::ASSETS::create(assets::supply, (*evil)->center.x,
+								(*evil)->center.y));
 							(*evil)->Release();
 							vEvils.erase(evil);
 							score += 10 + level;
@@ -1592,6 +1644,52 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 
 				Draw->DrawLine(D2D1::Point2F(vEvils[i]->start.x, vEvils[i]->end.y + 2.0f),
 					D2D1::Point2F(vEvils[i]->start.x + (float)(vEvils[i]->lifes / 1.5), vEvils[i]->end.y + 2.0f), txtBrush, 4.0f);
+			}
+		}
+
+		if (!vPowerups.empty())
+		{
+			for (int i = 0; i < vPowerups.size(); ++i)
+			{
+				int frame = vPowerups[i]->get_frame();
+				Draw->DrawBitmap(bmpSupply[frame], Resizer(bmpSupply[frame], vPowerups[i]->start.x, vPowerups[i]->start.y));
+			}
+		}
+
+		if (!vBonuses.empty())
+		{
+			for (int i = 0; i < vBonuses.size(); ++i)
+			{
+				vBonuses[i].set_opacity();
+				float opacity = vBonuses[i].opacity;
+				switch (vBonuses[i].what)
+				{
+				case bonus::armor:
+					Draw->DrawBitmap(bmpShield, D2D1::RectF(vBonuses[i].sx, vBonuses[i].sy, vBonuses[i].ex, vBonuses[i].ey),
+						opacity);
+					break;
+
+				case bonus::gun:
+					Draw->DrawBitmap(bmpGun, D2D1::RectF(vBonuses[i].sx, vBonuses[i].sy, vBonuses[i].ex, vBonuses[i].ey),
+						opacity);
+					break;
+
+				case bonus::repair:
+					Draw->DrawBitmap(bmpRepair, D2D1::RectF(vBonuses[i].sx, vBonuses[i].sy, vBonuses[i].ex, vBonuses[i].ey),
+						opacity);
+					break;
+
+				case bonus::points:
+					Draw->DrawBitmap(bmpPoints, D2D1::RectF(vBonuses[i].sx, vBonuses[i].sy, vBonuses[i].ex, vBonuses[i].ey),
+						opacity);
+					break;
+				}
+
+				if (opacity <= 0)
+				{
+					vBonuses.erase(vBonuses.begin() + i);
+					break;
+				}
 			}
 		}
 
