@@ -487,6 +487,8 @@ namespace dll
 
 		bool move(float gear);
 
+		int get_frame();
+
 		void Release();
 
 		static METEORS* create(meteors type, float first_x, float first_y, float end_x, float end_y);

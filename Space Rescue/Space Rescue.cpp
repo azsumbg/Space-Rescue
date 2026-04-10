@@ -150,6 +150,8 @@ std::vector<dll::ASSETS*>vPowerups;
 
 std::vector<dll::GUN*> vGuns;
 
+std::vector<dll::METEORS*>vMeteors;
+
 std::vector<dll::EVIL*>vEvils;
 
 std::vector<dll::SHOTS*>vEvilShots;
@@ -315,6 +317,10 @@ void InitGame()
 	if (!vPowerups.empty())for (int i = 0; i < vPowerups.size(); ++i)if (!FreeMem(&vPowerups[i]))
 		LogErr(L"Error freeing memory for vPowerups element !");
 	vPowerups.clear();
+
+	if (!vMeteors.empty())for (int i = 0; i < vMeteors.size(); ++i)if (!FreeMem(&vMeteors[i]))
+		LogErr(L"Error freeing memory for vMeteors element !");
+	vMeteors.clear();
 
 	if (!vEvilShots.empty())for (int i = 0; i < vEvilShots.size(); ++i)if (!FreeMem(&vEvilShots[i]))
 		LogErr(L"Error freeing memory for vEvilShots element !");
@@ -1143,7 +1149,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 			need_field_right = false;
 		}
 
-		if (vCivilians.size() <= 3 && RandIt(0, 300) == 6)
+		if (vCivilians.size() <= 2 && RandIt(0, 400) == 66)
 			vCivilians.push_back(dll::ASSETS::create(assets::civilian, scr_width + RandIt(50.0f, 200.0f), scr_height - 140.0f));
 
 		if (!vCivilians.empty())
@@ -1198,7 +1204,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 			if (is_ok)vGuns.push_back(a_gun);
 		}
 
-		if (vEvils.size() < 3 + level && RandIt(0, 400) == 33)
+		if (vEvils.size() <= 3 + level && RandIt(0, 400) == 33)
 		{
 			float tx{ RandIt(scr_width, scr_width + 300.0f) };
 			float ty{ RandIt(sky, ground - 100.0f) };
@@ -1221,6 +1227,34 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 			}
 
 			if (ok)vEvils.push_back(dll::EVIL::create(tx, ty));
+		}
+
+		if (vMeteors.size() <= 2 && RandIt(0, 600) == 111)
+		{
+			float tsx = RandIt(100.0f, scr_width);
+			float tsy = 0;
+			if (RandIt(0, 2) == 1)tsy = scr_height;
+
+			float tex = RandIt(0.0f, scr_width / 2.0f);
+			if (tsx <= scr_width / 2.0f)tex = RandIt(scr_width / 2.0f, scr_width);
+			float tey = scr_height;
+			if (tsy == scr_height)tey = 0;
+
+
+			vMeteors.push_back(dll::METEORS::create(static_cast<meteors>(RandIt(0, 1)), tsx, tsy, tex, tey));
+		}
+
+		if (!vMeteors.empty())
+		{
+			for (std::vector<dll::METEORS*>::iterator met = vMeteors.begin(); met < vMeteors.end(); ++met)
+			{
+				if (!(*met)->move((float)(level)))
+				{
+					(*met)->Release();
+					vMeteors.erase(met);
+					break;
+				}
+			}
 		}
 
 		if (!vEvils.empty() && Hero)
@@ -1401,6 +1435,57 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 					(*sup)->Release();
 					vPowerups.erase(sup);
 					break;
+				}
+			}
+		}
+
+		if (!vEvils.empty() && !vPowerups.empty())
+		{
+			for (std::vector<dll::EVIL*>::iterator evil = vEvils.begin(); evil < vEvils.end(); ++evil)
+			{
+				for (std::vector<dll::ASSETS*>::iterator sup = vPowerups.begin(); sup < vPowerups.end(); ++sup)
+				{
+					FRECT EvilR{ (*evil)->start.x,(*evil)->start.y,(*evil)->end.x,(*evil)->end.y};
+					FRECT SupR{ (*sup)->start.x,(*sup)->start.y,(*sup)->end.x,(*sup)->end.y };
+
+					if (dll::Intersect(EvilR, SupR))
+					{
+						switch (RandIt(0, 3))
+						{
+						case 0:
+							vBonuses.push_back(dll::BONUS{ bonus::armor,(*sup)->center.x,(*sup)->center.y });
+							vBonuses.back().set_edges();
+							(*evil)->armor++;
+							if (sound)mciSendString(L"play .\\res\\snd\\upgrade.wav", NULL, NULL, NULL);
+							break;
+
+						case 1:
+							vBonuses.push_back(dll::BONUS{ bonus::repair,(*sup)->center.x,(*sup)->center.y });
+							vBonuses.back().set_edges();
+							if ((*evil)->lifes + 50 <= 120)(*evil)->lifes += 50;
+							else (*evil)->lifes = 120;
+							if (sound)mciSendString(L"play .\\res\\snd\\lifes.wav", NULL, NULL, NULL);
+							break;
+
+						case 2:
+							vBonuses.push_back(dll::BONUS{ bonus::gun,(*sup)->center.x,(*sup)->center.y });
+							vBonuses.back().set_edges();
+							(*evil)->damage += 5;
+							if (sound)mciSendString(L"play .\\res\\snd\\upgrade.wav", NULL, NULL, NULL);
+							break;
+
+						case 3:
+							vBonuses.push_back(dll::BONUS{ bonus::points,(*sup)->center.x,(*sup)->center.y });
+							vBonuses.back().set_edges();
+							score -= 10 * level;
+							if (sound)mciSendString(L"play .\\res\\snd\\upgrade.wav", NULL, NULL, NULL);
+							break;
+
+						}
+						(*sup)->Release();
+						vPowerups.erase(sup);
+						break;
+					}
 				}
 			}
 		}
@@ -1688,6 +1773,25 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 				if (opacity <= 0)
 				{
 					vBonuses.erase(vBonuses.begin() + i);
+					break;
+				}
+			}
+		}
+
+		if (!vMeteors.empty())
+		{
+			for (int i = 0; i < vMeteors.size(); ++i)
+			{
+				int frame = vMeteors[i]->get_frame();
+
+				switch (vMeteors[i]->type)
+				{
+				case meteors::big:
+					Draw->DrawBitmap(bmpMeteor1[frame], Resizer(bmpMeteor1[frame], vMeteors[i]->start.x, vMeteors[i]->start.y));
+					break;
+
+				case meteors::mid:
+					Draw->DrawBitmap(bmpMeteor2[frame], Resizer(bmpMeteor2[frame], vMeteors[i]->start.x, vMeteors[i]->start.y));
 					break;
 				}
 			}
