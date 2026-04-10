@@ -337,16 +337,91 @@ void InitGame()
 		vGrounds.push_back(dll::FIELDS::create(assets::ground, i, scr_height - 100.0f));
 
 	Hero = dll::HERO::create(100.0f, scr_height / 2.0f);
-
-
-
 }
 void LevelUp()
 {
 	if (!level_skipped)
 	{
-
+		score += 50 + 10 * (civs_saved - civs_needed);
+		Draw->BeginDraw();
+		Draw->DrawBitmap(bmpField, D2D1::RectF(0, 0, scr_width, scr_height));
+		Draw->DrawTextW(L"СПЕЧЕЛИ БОНУСА !", 17, bigFormat, D2D1::RectF(scr_width / 2.0f - 250.0f, scr_height / 2.0f - 50.0f,
+			scr_width, scr_height), hgltBrush);
+		Draw->EndDraw();
+		if (sound)mciSendString(L"play .\\res\\snd\\tada.wav", NULL, NULL, NULL);
+		Sleep(3000);
 	}
+
+	level_skipped = false;
+
+	Draw->BeginDraw();
+	Draw->DrawBitmap(bmpField, D2D1::RectF(0, 0, scr_width, scr_height));
+	Draw->DrawTextW(L"СЛЕДВАЩО НИВО !", 16, bigFormat, D2D1::RectF(scr_width / 2.0f - 250.0f, scr_height / 2.0f - 50.0f,
+		scr_width, scr_height), hgltBrush);
+	Draw->EndDraw();
+	if (sound)mciSendString(L"play .\\res\\snd\\levelup.wav", NULL, NULL, NULL);
+	Sleep(4000);
+
+	++level;
+
+	civs_needed = 20 + level * 5;
+	civs_saved = 0;
+
+	distance = 600 + level * 20;
+
+	need_field_left = false;
+	need_field_right = false;
+
+	need_ground_left = false;
+	need_ground_right = false;
+
+	if (Hero)
+		if (!FreeMem(&Hero))LogErr(L"Error freeing memory for Hero !");
+
+	if (!vFields.empty())for (int i = 0; i < vFields.size(); ++i)if (!FreeMem(&vFields[i]))
+		LogErr(L"Error freeing memory for vFields element !");
+	vFields.clear();
+
+	if (!vGrounds.empty())for (int i = 0; i < vGrounds.size(); ++i)if (!FreeMem(&vGrounds[i]))
+		LogErr(L"Error freeing memory for vGrounds element !");
+	vGrounds.clear();
+
+	if (!vCivilians.empty())for (int i = 0; i < vCivilians.size(); ++i)if (!FreeMem(&vCivilians[i]))
+		LogErr(L"Error freeing memory for vCivilians element !");
+	vCivilians.clear();
+
+	if (!vEvils.empty())for (int i = 0; i < vEvils.size(); ++i)if (!FreeMem(&vEvils[i]))
+		LogErr(L"Error freeing memory for vEvils element !");
+	vEvils.clear();
+
+	if (!vGuns.empty())for (int i = 0; i < vGuns.size(); ++i)if (!FreeMem(&vGuns[i]))
+		LogErr(L"Error freeing memory for vGuns element !");
+	vGuns.clear();
+
+	if (!vBombs.empty())for (int i = 0; i < vBombs.size(); ++i)if (!FreeMem(&vBombs[i]))
+		LogErr(L"Error freeing memory for vBombs element !");
+	vBombs.clear();
+
+	if (!vPowerups.empty())for (int i = 0; i < vPowerups.size(); ++i)if (!FreeMem(&vPowerups[i]))
+		LogErr(L"Error freeing memory for vPowerups element !");
+	vPowerups.clear();
+
+	if (!vMeteors.empty())for (int i = 0; i < vMeteors.size(); ++i)if (!FreeMem(&vMeteors[i]))
+		LogErr(L"Error freeing memory for vMeteors element !");
+	vMeteors.clear();
+
+	if (!vEvilShots.empty())for (int i = 0; i < vEvilShots.size(); ++i)if (!FreeMem(&vEvilShots[i]))
+		LogErr(L"Error freeing memory for vEvilShots element !");
+	vEvilShots.clear();
+
+	vBonuses.clear();
+	vExplosions.clear();
+
+	for (float i = -scr_width; i < 2.0f * scr_width; i += scr_width)vFields.push_back(dll::FIELDS::create(assets::field, i, 50.0f));
+	for (float i = -scr_width; i < 2.0f * scr_width; i += scr_width)
+		vGrounds.push_back(dll::FIELDS::create(assets::ground, i, scr_height - 100.0f));
+
+	Hero = dll::HERO::create(100.0f, scr_height / 2.0f);
 }
 
 
@@ -1990,9 +2065,12 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 			wsprintf(add, L"%d", civs_saved);
 			wcscat_s(stat_txt, add);
 
-			wcscat_s(stat_txt, L", за спасяване: ");
-			wsprintf(add, L"%d", civs_needed);
-			wcscat_s(stat_txt, add);
+			if (civs_needed - civs_saved >= 0)
+			{
+				wcscat_s(stat_txt, L", за спасяване: ");
+				wsprintf(add, L"%d", civs_needed - civs_saved);
+				wcscat_s(stat_txt, add);
+			}
 
 			for (int i = 0; i < 200; i++)
 			{
@@ -2002,7 +2080,6 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 
 			Draw->DrawTextW(stat_txt, stat_size, nrmFormat, D2D1::RectF(10.0f, ground + 60.0f, scr_width, scr_height), hgltBrush);
 		}
-
 
 		Draw->EndDraw();
 	
