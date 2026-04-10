@@ -367,7 +367,7 @@ void LevelUp()
 	civs_needed = 20 + level * 5;
 	civs_saved = 0;
 
-	distance = 600 + level * 20;
+	distance = 600.0f + (float)(level * 20);
 
 	need_field_left = false;
 	need_field_right = false;
@@ -514,7 +514,11 @@ LRESULT CALLBACK WinProc(HWND hwnd, UINT ReceivedMsg, WPARAM wParam, LPARAM lPar
 
 	case WM_TIMER:
 		if (pause)break;
-		--distance;
+		if (Hero)
+		{
+			if (nature_dir == dirs::right)++distance;
+			else --distance;
+		}
 		if (!vBonuses.empty())for (int i = 0; i < vBonuses.size(); ++i)vBonuses[i].set_opacity();
 		break;
 
@@ -716,7 +720,63 @@ LRESULT CALLBACK WinProc(HWND hwnd, UINT ReceivedMsg, WPARAM wParam, LPARAM lPar
 		}
 		break;
 
+	case WM_LBUTTONDOWN:
+		if (HIWORD(lParam) * scale_y <= 50)
+		{
+			if (LOWORD(lParam) * scale_x >= b1Rect.left && LOWORD(lParam) * scale_x <= b1Rect.right)
+			{
+				if (name_set)
+				{
+					if (sound)mciSendString(L"play .\\res\\snd\\negative.wav", NULL, NULL, NULL);
+					break;
+				}
 
+				if (sound)mciSendString(L"play .\\res\\snd\\select.wav", NULL, NULL, NULL);
+
+				if (DialogBox(bIns, MAKEINTRESOURCE(IDD_PLAYER), hwnd, &DlgProc) == IDOK)name_set = true;
+				
+				break;
+			}
+			if (LOWORD(lParam) * scale_x >= b2Rect.left && LOWORD(lParam) * scale_x <= b2Rect.right)
+			{
+				
+				mciSendString(L"play .\\res\\snd\\select.wav", NULL, NULL, NULL);
+
+				if (sound)
+				{
+					sound = false;
+					PlaySound(NULL, NULL, NULL);
+					break;
+				}
+				else
+				{
+					sound = true;
+					PlaySound(sound_file, NULL, SND_ASYNC | SND_LOOP);
+					break;
+				}
+
+				break;
+			}
+			if (LOWORD(lParam) * scale_x >= b3Rect.left && LOWORD(lParam) * scale_x <= b3Rect.right)
+			{
+				if(sound)mciSendString(L"play .\\res\\snd\\select.wav", NULL, NULL, NULL);
+			}
+		}
+		else
+		{
+			if (sound)mciSendString(L"play .\\res\\snd\\select.wav", NULL, NULL, NULL);
+			if (!pause)
+			{
+				pause = true;
+				break;
+			}
+			else
+			{
+				pause = false;
+				break;
+			}
+		}
+		break;
 
 	default: return DefWindowProc(hwnd, ReceivedMsg, wParam, lParam);
 	}
@@ -1143,7 +1203,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 	bIns = hInstance;
 	if (!bIns)ErrExit(eClass);
 
-
+	//PlaySound(sound_file, NULL, SND_ASYNC | SND_LOOP);
 
 	CreateResources();
 

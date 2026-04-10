@@ -557,8 +557,8 @@ namespace dll
 
 		float _speed = 0.8f;
 
-		int attack_delay = 80;
-		int max_attack_delay = 80;
+		int attack_delay = 50;
+		int max_attack_delay = 50;
 		
 		EVIL(float _sx, float _sy);
 
@@ -569,8 +569,8 @@ namespace dll
 		int armor = 1;
 		int damage = 5;
 
-		float see_range = 200.0f;
-		float shoot_range = 100.0f;
+		float see_range = 300.0f;
+		float shoot_range = 250.0f;
 
 		bool move(float ex, float ey, float gear);
 
