@@ -1193,7 +1193,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 			if (is_ok)vGuns.push_back(a_gun);
 		}
 
-		if (vEvils.size() < 3 + level && RandIt(0, 500) == 33)
+		if (vEvils.size() < 3 + level && RandIt(0, 400) == 33)
 		{
 			float tx{ RandIt(scr_width, scr_width + 300.0f) };
 			float ty{ RandIt(sky, ground - 100.0f) };
@@ -1234,16 +1234,29 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 				if (!bShots.empty())dll::Sort(bShots, (*evil)->center);
 				if (!bPowerups.empty())dll::Sort(bPowerups, (*evil)->center);
 
-				dll::AINextMove((*(*evil)), bCivs, bShots, bPowerups, Hero->center);
+				todo next_move = dll::AINextMove((*(*evil)), bCivs, bShots, bPowerups, Hero->center);
 
-				float ex = (*evil)->get_target_x();
-				float ey = (*evil)->get_target_y();
-
-				if (!(*evil)->move(ex, ey, (float)(level)))
+				if (next_move == todo::shoot)
 				{
-					(*evil)->Release();
-					vEvils.erase(evil);
-					break;
+					int damage = (*evil)->attack();
+					if (damage > 0)
+					{
+						vEvilShots.push_back(dll::SHOTS::create((*evil)->center.x, (*evil)->center.y,
+							Hero->center.x, Hero->center.y, false));
+						vEvilShots.back()->damage = damage;
+					}
+				}
+				else
+				{
+					float ex = (*evil)->get_target_x();
+					float ey = (*evil)->get_target_y();
+
+					if (!(*evil)->move(ex, ey, (float)(level)))
+					{
+						(*evil)->Release();
+						vEvils.erase(evil);
+						break;
+					}
 				}
 			}
 		}
