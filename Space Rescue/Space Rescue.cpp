@@ -552,21 +552,25 @@ LRESULT CALLBACK WinProc(HWND hwnd, UINT ReceivedMsg, WPARAM wParam, LPARAM lPar
 		switch (LOWORD(wParam))
 		{
 		case VK_LEFT:
+			if (sound)mciSendString(L"play .\\res\\snd\\engine.wav", NULL, NULL, NULL);
 			Hero->dir = dirs::left;
 			Hero->move((float)(level));
 			break;
 
 		case VK_RIGHT:
+			if (sound)mciSendString(L"play .\\res\\snd\\engine.wav", NULL, NULL, NULL);
 			Hero->dir = dirs::right;
 			Hero->move((float)(level));
 			break;
 
 		case VK_UP:
+			if (sound)mciSendString(L"play .\\res\\snd\\engine.wav", NULL, NULL, NULL);
 			Hero->dir = dirs::up;
 			Hero->move((float)(level));
 			break;
 
 		case VK_DOWN:
+			if (sound)mciSendString(L"play .\\res\\snd\\engine.wav", NULL, NULL, NULL);
 			Hero->dir = dirs::down;
 			Hero->move((float)(level));
 			break;
@@ -1241,6 +1245,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 					int damage = (*evil)->attack();
 					if (damage > 0)
 					{
+						if (sound)mciSendString(L"play .\\res\\snd\\laser.wav", NULL, NULL, NULL);
 						vEvilShots.push_back(dll::SHOTS::create((*evil)->center.x, (*evil)->center.y,
 							Hero->center.x, Hero->center.y, false));
 						vEvilShots.back()->damage = damage;
@@ -1409,6 +1414,37 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 			}
 		}
 
+		if (!vEvils.empty() && !vMyShots.empty())
+		{
+			for (std::vector<dll::EVIL*>::iterator evil = vEvils.begin(); evil < vEvils.end(); ++evil)
+			{
+				bool killed = false;
+
+				for (std::vector<dll::SHOTS*>::iterator shot = vMyShots.begin(); shot < vMyShots.end(); ++shot)
+				{
+					if (dll::Intersect((*evil)->center, (*shot)->center, (*evil)->x_rad, (*shot)->x_rad,
+						(*evil)->y_rad, (*shot)->y_rad))
+					{
+						(*evil)->lifes -= ((*shot)->damage - (*evil)->armor);
+						if (sound)mciSendString(L"play .\\res\\snd\\evildamage.wav", NULL, NULL, NULL);
+						(*shot)->Release();
+						vMyShots.erase(shot);
+
+						if ((*evil)->lifes <= 0)
+						{
+							vExplosions.push_back(EXPLOSION((*evil)->center.x, (*evil)->center.y));
+							(*evil)->Release();
+							vEvils.erase(evil);
+							score += 10 + level;
+							killed = true;
+						}
+						break;
+					}
+				}
+
+				if (killed)break;
+			}
+		}
 
 		// DRAW THINGS ***************************************************
 
