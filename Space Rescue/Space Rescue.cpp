@@ -1446,6 +1446,38 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 			}
 		}
 
+		if (!vEvils.empty() && !vBombs.empty())
+		{
+			for (std::vector<dll::EVIL*>::iterator evil = vEvils.begin(); evil < vEvils.end(); ++evil)
+			{
+				bool killed = false;
+
+				for (std::vector<dll::SHOTS*>::iterator shot = vBombs.begin(); shot < vBombs.end(); ++shot)
+				{
+					if (dll::Intersect((*evil)->center, (*shot)->center, (*evil)->x_rad, (*shot)->x_rad,
+						(*evil)->y_rad, (*shot)->y_rad))
+					{
+						(*evil)->lifes -= ((*shot)->damage - (*evil)->armor);
+						if (sound)mciSendString(L"play .\\res\\snd\\evildamage.wav", NULL, NULL, NULL);
+						(*shot)->Release();
+						vBombs.erase(shot);
+
+						if ((*evil)->lifes <= 0)
+						{
+							vExplosions.push_back(EXPLOSION((*evil)->center.x, (*evil)->center.y));
+							(*evil)->Release();
+							vEvils.erase(evil);
+							score += 10 + level;
+							killed = true;
+						}
+						break;
+					}
+				}
+
+				if (killed)break;
+			}
+		}
+
 		// DRAW THINGS ***************************************************
 
 		Draw->BeginDraw();

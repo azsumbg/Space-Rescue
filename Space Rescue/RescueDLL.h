@@ -458,7 +458,7 @@ namespace dll
 	class RESCUEDLL_API SHOTS :public PROTON
 	{
 	private:
-		float _speed = 2.0f;
+		float _speed = 4.0f;
 
 		SHOTS(float _first_x, float _first_y, float _end_x, float _end_y, bool _is_bomb);
 
@@ -567,8 +567,8 @@ namespace dll
 		int armor = 1;
 		int damage = 5;
 
-		float see_range = 300.0f;
-		float shoot_range = 150.0f;
+		float see_range = 200.0f;
+		float shoot_range = 100.0f;
 
 		bool move(float ex, float ey, float gear);
 
