@@ -256,7 +256,39 @@ void ErrExit(int what)
 	std::remove(tmp_file);
 	exit(1);
 }
+BOOL CheckRecord()
+{
+	if (score <= 0)return no_record;
 
+	int result = 0;
+	CheckFile(record_file, &result);
+
+	if (result == FILE_NOT_EXIST)
+	{
+		std::wofstream rec{ record_file };
+		rec << score << std::endl;
+		for (int i = 0; i < 16; ++i)rec << static_cast<int>(current_player[i]) << std::endl;
+		rec.close();
+		return first_record;
+	}
+	else
+	{
+		std::wifstream check(record_file);
+		check >> result;
+		check.close();
+	}
+
+	if (score > result)
+	{
+		std::wofstream rec{ record_file };
+		rec << score << std::endl;
+		for (int i = 0; i < 16; ++i)rec << static_cast<int>(current_player[i]) << std::endl;
+		rec.close();
+		return record;
+	}
+
+	return no_record;
+}
 void GameOver()
 {
 	KillTimer(bHwnd, bTimer);
@@ -672,7 +704,8 @@ LRESULT CALLBACK WinProc(HWND hwnd, UINT ReceivedMsg, WPARAM wParam, LPARAM lPar
 			Hero->move((float)(level));
 			break;
 
-		case VK_SPACE:
+		case VK_CONTROL:
+			if (sound)mciSendString(L"play .\\res\\snd\\bomb.wav", NULL, NULL, NULL);
 			switch (Hero->dir)
 			{
 			case dirs::up:
@@ -1203,9 +1236,9 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 	bIns = hInstance;
 	if (!bIns)ErrExit(eClass);
 
-	//PlaySound(sound_file, NULL, SND_ASYNC | SND_LOOP);
-
 	CreateResources();
+
+	PlaySound(sound_file, NULL, SND_ASYNC | SND_LOOP);
 
 	while (bMsg.message != WM_QUIT)
 	{
