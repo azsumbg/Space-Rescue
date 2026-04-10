@@ -145,7 +145,11 @@ std::vector<dll::BONUS> vBonuses;
 
 std::vector<dll::ASSETS*>vCivilians;
 
+std::vector<dll::ASSETS*>vPowerups;
+
 std::vector<dll::GUN*> vGuns;
+
+std::vector<dll::EVIL*>vEvils;
 
 std::vector<dll::SHOTS*>vEvilShots;
 
@@ -295,6 +299,10 @@ void InitGame()
 		LogErr(L"Error freeing memory for vCivilians element !");
 	vCivilians.clear();
 
+	if (!vEvils.empty())for (int i = 0; i < vEvils.size(); ++i)if (!FreeMem(&vEvils[i]))
+		LogErr(L"Error freeing memory for vEvils element !");
+	vEvils.clear();
+
 	if (!vGuns.empty())for (int i = 0; i < vGuns.size(); ++i)if (!FreeMem(&vGuns[i]))
 		LogErr(L"Error freeing memory for vGuns element !");
 	vGuns.clear();
@@ -302,6 +310,10 @@ void InitGame()
 	if (!vBombs.empty())for (int i = 0; i < vBombs.size(); ++i)if (!FreeMem(&vBombs[i]))
 		LogErr(L"Error freeing memory for vBombs element !");
 	vBombs.clear();
+
+	if (!vPowerups.empty())for (int i = 0; i < vPowerups.size(); ++i)if (!FreeMem(&vPowerups[i]))
+		LogErr(L"Error freeing memory for vPowerups element !");
+	vPowerups.clear();
 
 	if (!vEvilShots.empty())for (int i = 0; i < vEvilShots.size(); ++i)if (!FreeMem(&vEvilShots[i]))
 		LogErr(L"Error freeing memory for vEvilShots element !");
@@ -1126,8 +1138,8 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 			need_field_right = false;
 		}
 
-		if (vCivilians.size() <= 5 && RandIt(0, 300) == 6)
-			vCivilians.push_back(dll::ASSETS::create(assets::civilian, scr_width + RandIt(50.0f, 200.0f), scr_height - 180.0f));
+		if (vCivilians.size() <= 3 && RandIt(0, 300) == 6)
+			vCivilians.push_back(dll::ASSETS::create(assets::civilian, scr_width + RandIt(50.0f, 200.0f), scr_height - 140.0f));
 
 		if (!vCivilians.empty())
 		{
@@ -1179,6 +1191,61 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 			}
 
 			if (is_ok)vGuns.push_back(a_gun);
+		}
+
+		if (vEvils.size() < 3 + level && RandIt(0, 500) == 33)
+		{
+			float tx{ RandIt(scr_width, scr_width + 300.0f) };
+			float ty{ RandIt(sky, ground - 100.0f) };
+		
+			FRECT dummy{ tx,ty,tx + 120.0f,ty + 42.0f };
+
+			bool ok = true;
+
+			if (!vEvils.empty())
+			{
+				for (int i = 0; i < vEvils.size(); ++i)
+				{
+					FRECT evil{ vEvils[i]->start.x,vEvils[i]->start.y,vEvils[i]->end.x,vEvils[i]->end.y };
+					if (dll::Intersect(dummy, evil))
+					{
+						ok = false;
+						break;
+					}
+				}
+			}
+
+			if (ok)vEvils.push_back(dll::EVIL::create(tx, ty));
+		}
+
+		if (!vEvils.empty() && Hero)
+		{
+			for (std::vector<dll::EVIL*>::iterator evil = vEvils.begin(); evil < vEvils.end(); ++evil)
+			{
+				dll::BAG<FPOINT>bCivs(vCivilians.size());
+				dll::BAG<FPOINT>bShots(vMyShots.size());
+				dll::BAG<FPOINT>bPowerups(vPowerups.size());
+
+				if (!vCivilians.empty())for (int i = 0; i < vCivilians.size(); ++i)bCivs.push_back(vCivilians[i]->center);
+				if (!vMyShots.empty())for (int i = 0; i < vMyShots.size(); ++i)bShots.push_back(vMyShots[i]->center);
+				if (!vPowerups.empty())for (int i = 0; i < vPowerups.size(); ++i)bPowerups.push_back(vPowerups[i]->center);
+
+				if (!bCivs.empty())dll::Sort(bCivs, (*evil)->center);
+				if (!bShots.empty())dll::Sort(bShots, (*evil)->center);
+				if (!bPowerups.empty())dll::Sort(bPowerups, (*evil)->center);
+
+				dll::AINextMove((*(*evil)), bCivs, bShots, bPowerups, Hero->center);
+
+				float ex = (*evil)->get_target_x();
+				float ey = (*evil)->get_target_y();
+
+				if (!(*evil)->move(ex, ey, (float)(level)))
+				{
+					(*evil)->Release();
+					vEvils.erase(evil);
+					break;
+				}
+			}
 		}
 
 		if (!vGuns.empty())
@@ -1307,29 +1374,32 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 			}
 		}
 
+		if (Hero && !vEvilShots.empty())
+		{
+			for (std::vector<dll::SHOTS*>::iterator shot = vEvilShots.begin(); shot < vEvilShots.end(); ++shot)
+			{
+				if (dll::Intersect(Hero->center, (*shot)->center, Hero->x_rad, (*shot)->x_rad,
+					Hero->y_rad, (*shot)->y_rad))
+				{
+					Hero->lifes -= ((*shot)->damage - Hero->armor);
+					if (sound)mciSendString(L"play .\\res\\snd\\damage.wav", NULL, NULL, NULL);
+					(*shot)->Release();
+					vEvilShots.erase(shot);
+					if (Hero->lifes <= 0)
+					{
+						hero_killed = true;
+						vExplosions.push_back(EXPLOSION(Hero->start.x, Hero->start.y));
+						FreeMem(&Hero);
+					}
+					break;
+				}
+			}
+		}
+
 
 		// DRAW THINGS ***************************************************
 
 		Draw->BeginDraw();
-
-		if (nrmFormat && txtBrush && hgltBrush && inactBrush && statBrush && b1BckgBrush && b2BckgBrush && b3BckgBrush)
-		{
-			Draw->FillRectangle(D2D1::RectF(0, 0, scr_width, 50.0f), statBrush);
-			Draw->FillRoundedRectangle(D2D1::RoundedRect(b1Rect, 20.0f, 25.0f), b1BckgBrush);
-			Draw->FillRoundedRectangle(D2D1::RoundedRect(b2Rect, 20.0f, 25.0f), b2BckgBrush);
-			Draw->FillRoundedRectangle(D2D1::RoundedRect(b3Rect, 20.0f, 25.0f), b3BckgBrush);
-
-			if (name_set)Draw->DrawTextW(L"ИМЕ НА ПИЛОТ", 13, nrmFormat, b1txtRect, inactBrush);
-			else
-			{
-				if (!b1hglt)Draw->DrawTextW(L"ИМЕ НА ПИЛОТ", 13, nrmFormat, b1txtRect, txtBrush);
-				else Draw->DrawTextW(L"ИМЕ НА ПИЛОТ", 13, nrmFormat, b1txtRect, hgltBrush);
-			}
-			if (!b2hglt)Draw->DrawTextW(L"ЗВУЦИ ON / OFF", 15, nrmFormat, b2txtRect, txtBrush);
-			else Draw->DrawTextW(L"ЗВУЦИ ON / OFF", 15, nrmFormat, b2txtRect, hgltBrush);
-			if (!b3hglt)Draw->DrawTextW(L"ПОМОЩ ЗА ИГРАТА", 16, nrmFormat, b3txtRect, txtBrush);
-			else Draw->DrawTextW(L"ПОМОЩ ЗА ИГРАТА", 16, nrmFormat, b3txtRect, hgltBrush);
-		}
 
 		if (!vFields.empty())
 			for (int i = 0; i < vFields.size(); ++i)Draw->DrawBitmap(bmpField, D2D1::RectF(vFields[i]->start.x,
@@ -1355,6 +1425,9 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 				int frame = Hero->get_frame();
 				Draw->DrawBitmap(bmpHeroR[frame], Resizer(bmpHeroL[frame], Hero->start.x, Hero->start.y));
 			}
+
+			Draw->DrawLine(D2D1::Point2F(Hero->start.x - 2.0f, Hero->end.y + 2.0f),
+				D2D1::Point2F(Hero->start.x - 2.0f + (float)(Hero->lifes / 1.5), Hero->end.y + 2.0f), txtBrush, 4.0f);
 		}
 
 		if (!vCivilians.empty())
@@ -1415,9 +1488,56 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 			}
 		}
 
+		if (!vEvils.empty())
+		{
+			for (int i = 0; i < vEvils.size(); ++i)
+			{
+				int frame = vEvils[i]->get_frame();
+
+				switch (vEvils[i]->dir)
+				{
+				case dirs::left:
+					Draw->DrawBitmap(bmpEvilL[frame], Resizer(bmpEvilL[frame], vEvils[i]->start.x, vEvils[i]->start.y));
+					break;
+
+				case dirs::stop:
+					Draw->DrawBitmap(bmpEvilL[frame], Resizer(bmpEvilL[frame], vEvils[i]->start.x, vEvils[i]->start.y));
+					break;
+
+				case dirs::right:
+					Draw->DrawBitmap(bmpEvilR[frame], Resizer(bmpEvilR[frame], vEvils[i]->start.x, vEvils[i]->start.y));
+					break;
+				}
+
+				Draw->DrawLine(D2D1::Point2F(vEvils[i]->start.x, vEvils[i]->end.y + 2.0f),
+					D2D1::Point2F(vEvils[i]->start.x + (float)(vEvils[i]->lifes / 1.5), vEvils[i]->end.y + 2.0f), txtBrush, 4.0f);
+			}
+		}
+
 		/////////////////////////
 
+		if (nrmFormat && txtBrush && hgltBrush && inactBrush && statBrush && b1BckgBrush && b2BckgBrush && b3BckgBrush)
+		{
+			Draw->FillRectangle(D2D1::RectF(0, 0, scr_width, 50.0f), statBrush);
+			Draw->FillRoundedRectangle(D2D1::RoundedRect(b1Rect, 20.0f, 25.0f), b1BckgBrush);
+			Draw->FillRoundedRectangle(D2D1::RoundedRect(b2Rect, 20.0f, 25.0f), b2BckgBrush);
+			Draw->FillRoundedRectangle(D2D1::RoundedRect(b3Rect, 20.0f, 25.0f), b3BckgBrush);
+
+			if (name_set)Draw->DrawTextW(L"ИМЕ НА ПИЛОТ", 13, nrmFormat, b1txtRect, inactBrush);
+			else
+			{
+				if (!b1hglt)Draw->DrawTextW(L"ИМЕ НА ПИЛОТ", 13, nrmFormat, b1txtRect, txtBrush);
+				else Draw->DrawTextW(L"ИМЕ НА ПИЛОТ", 13, nrmFormat, b1txtRect, hgltBrush);
+			}
+			if (!b2hglt)Draw->DrawTextW(L"ЗВУЦИ ON / OFF", 15, nrmFormat, b2txtRect, txtBrush);
+			else Draw->DrawTextW(L"ЗВУЦИ ON / OFF", 15, nrmFormat, b2txtRect, hgltBrush);
+			if (!b3hglt)Draw->DrawTextW(L"ПОМОЩ ЗА ИГРАТА", 16, nrmFormat, b3txtRect, txtBrush);
+			else Draw->DrawTextW(L"ПОМОЩ ЗА ИГРАТА", 16, nrmFormat, b3txtRect, hgltBrush);
+		}
+
 		Draw->EndDraw();
+	
+		if (vExplosions.empty() && hero_killed)GameOver();
 	}
 
 	ClearResources();
