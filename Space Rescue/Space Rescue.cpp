@@ -485,7 +485,7 @@ void ShowRecord()
 	if (result == FILE_NOT_EXIST)
 	{
 		if (sound)mciSendString(L"play .\\res\\snd\\negative.wav", NULL, NULL, NULL);
-		MessageBox(bHwnd, L"Все още няма рекорд на играта !\n\nПостарай се повече", L"Липсва файл",
+		MessageBox(bHwnd, L"Все още няма рекорд на играта !\n\nПостарай се повече !", L"Липсва файл",
 			MB_OK | MB_APPLMODAL | MB_ICONEXCLAMATION);
 		return;
 	}
@@ -636,7 +636,7 @@ void LoadGame()
 	else
 	{
 		if (sound)mciSendString(L"play .\\res\\snd\\negative.wav", NULL, NULL, NULL);
-		MessageBox(bHwnd, L"Все още няма записана игра !\n\nПостарай се повече", L"Липсва файл",
+		MessageBox(bHwnd, L"Все още няма записана игра !\n\nПостарай се повече !", L"Липсва файл",
 			MB_OK | MB_APPLMODAL | MB_ICONEXCLAMATION);
 		return;
 	}
@@ -823,7 +823,56 @@ void LoadGame()
 
 	MessageBox(bHwnd, L"Играта е заредена !", L"Запис !", MB_OK | MB_APPLMODAL | MB_ICONINFORMATION);
 }
+void ShowHelp()
+{
+	int result = 0;
+	CheckFile(help_file, &result);
+	if (result == FILE_NOT_EXIST)
+	{
+		if (sound)mciSendString(L"play .\\res\\snd\\negative.wav", NULL, NULL, NULL);
+		MessageBox(bHwnd, L"Не е налична помощ за играта !\n\nСвържете се с разработчика !", L"Липсва файл",
+			MB_OK | MB_APPLMODAL | MB_ICONEXCLAMATION);
+		return;
+	}
 
+	std::wifstream help(help_file);
+	wchar_t help_txt[1000]{ L"\0" };
+
+	help >> result;
+	for (int i = 0; i < result; ++i)
+	{
+		int letter = 0;
+		help >> letter;
+		help_txt[i] = static_cast<wchar_t>(letter);
+	}
+	help.close();
+
+	if (sound)mciSendString(L"play .\\res\\snd\\help.wav", NULL, NULL, NULL);
+
+	Draw->BeginDraw();
+	Draw->DrawBitmap(bmpIntro[dll::IntroFrame()], D2D1::RectF(0, 0, scr_width, scr_height));
+	if (nrmFormat && midFormat && txtBrush && hgltBrush && inactBrush && statBrush && b1BckgBrush && b2BckgBrush && b3BckgBrush)
+	{
+		Draw->FillRectangle(D2D1::RectF(0, 0, scr_width, 50.0f), statBrush);
+		Draw->FillRoundedRectangle(D2D1::RoundedRect(b1Rect, 20.0f, 25.0f), b1BckgBrush);
+		Draw->FillRoundedRectangle(D2D1::RoundedRect(b2Rect, 20.0f, 25.0f), b2BckgBrush);
+		Draw->FillRoundedRectangle(D2D1::RoundedRect(b3Rect, 20.0f, 25.0f), b3BckgBrush);
+
+		if (name_set)Draw->DrawTextW(L"ИМЕ НА ПИЛОТ", 13, nrmFormat, b1txtRect, inactBrush);
+		else
+		{
+			if (!b1hglt)Draw->DrawTextW(L"ИМЕ НА ПИЛОТ", 13, nrmFormat, b1txtRect, txtBrush);
+			else Draw->DrawTextW(L"ИМЕ НА ПИЛОТ", 13, nrmFormat, b1txtRect, hgltBrush);
+		}
+		if (!b2hglt)Draw->DrawTextW(L"ЗВУЦИ ON / OFF", 15, nrmFormat, b2txtRect, txtBrush);
+		else Draw->DrawTextW(L"ЗВУЦИ ON / OFF", 15, nrmFormat, b2txtRect, hgltBrush);
+		if (!b3hglt)Draw->DrawTextW(L"ПОМОЩ ЗА ИГРАТА", 16, nrmFormat, b3txtRect, txtBrush);
+		else Draw->DrawTextW(L"ПОМОЩ ЗА ИГРАТА", 16, nrmFormat, b3txtRect, hgltBrush);
+
+		Draw->DrawTextW(help_txt, result, midFormat, D2D1::RectF(100.0f, 100.0f, scr_width, scr_height), txtBrush);
+	}
+	Draw->EndDraw();
+}
 
 INT_PTR CALLBACK DlgProc(HWND hwnd, UINT ReceivedMsg, WPARAM wParam, LPARAM lParam)
 {
@@ -1178,6 +1227,20 @@ LRESULT CALLBACK WinProc(HWND hwnd, UINT ReceivedMsg, WPARAM wParam, LPARAM lPar
 			if (LOWORD(lParam) * scale_x >= b3Rect.left && LOWORD(lParam) * scale_x <= b3Rect.right)
 			{
 				if(sound)mciSendString(L"play .\\res\\snd\\select.wav", NULL, NULL, NULL);
+
+				if (!show_help)
+				{
+					show_help = true;
+					pause = true;
+					ShowHelp();
+					break;
+				}
+				else
+				{
+					pause = false;
+					show_help = false;
+					break;
+				}
 			}
 		}
 		else
@@ -2048,6 +2111,25 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 						}
 						(*sup)->Release();
 						vPowerups.erase(sup);
+						break;
+					}
+				}
+			}
+		}
+
+		if (!vEvils.empty() && !vCivilians.empty())
+		{
+			for (std::vector<dll::EVIL*>::iterator evil = vEvils.begin(); evil < vEvils.end(); ++evil)
+			{
+				for (std::vector<dll::ASSETS*>::iterator sup = vCivilians.begin(); sup < vCivilians.end(); ++sup)
+				{
+					FRECT EvilR{ (*evil)->start.x,(*evil)->start.y,(*evil)->end.x,(*evil)->end.y };
+					FRECT SupR{ (*sup)->start.x,(*sup)->start.y,(*sup)->end.x,(*sup)->end.y };
+
+					if (dll::Intersect(EvilR, SupR))
+					{
+						(*sup)->Release();
+						vCivilians.erase(sup);
 						break;
 					}
 				}
