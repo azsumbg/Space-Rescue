@@ -294,9 +294,32 @@ void GameOver()
 	KillTimer(bHwnd, bTimer);
 	PlaySound(NULL, NULL, NULL);
 
+	switch (CheckRecord())
+	{
+	case no_record:
+		Draw->BeginDraw();
+		Draw->DrawBitmap(bmpLoose, D2D1::RectF(0, 0, scr_width, scr_height));
+		Draw->EndDraw();
+		if (sound)PlaySound(L".\\res\\snd\\loose.wav", NULL, SND_SYNC);
+		else Sleep(4500);
+		break;
 
+	case first_record:
+		Draw->BeginDraw();
+		Draw->DrawBitmap(bmpWin, D2D1::RectF(0, 0, scr_width, scr_height));
+		Draw->EndDraw();
+		if (sound)PlaySound(L".\\res\\snd\\record.wav", NULL, SND_SYNC);
+		else Sleep(4500);
+		break;
 
-
+	case record:
+		Draw->BeginDraw();
+		Draw->DrawBitmap(bmpRecord, D2D1::RectF(0, 0, scr_width, scr_height));
+		Draw->EndDraw();
+		if (sound)PlaySound(L".\\res\\snd\\record.wav", NULL, SND_SYNC);
+		else Sleep(4500);
+		break;
+	}
 
 	bMsg.message = WM_QUIT;
 	bMsg.wParam = 0;
@@ -387,12 +410,10 @@ void LevelUp()
 	level_skipped = false;
 
 	Draw->BeginDraw();
-	Draw->DrawBitmap(bmpField, D2D1::RectF(0, 0, scr_width, scr_height));
-	Draw->DrawTextW(L"СЛЕДВАЩО НИВО !", 16, bigFormat, D2D1::RectF(scr_width / 2.0f - 250.0f, scr_height / 2.0f - 50.0f,
-		scr_width, scr_height), hgltBrush);
+	Draw->DrawBitmap(bmpLevel, D2D1::RectF(0, 0, scr_width, scr_height));
 	Draw->EndDraw();
 	if (sound)mciSendString(L"play .\\res\\snd\\levelup.wav", NULL, NULL, NULL);
-	Sleep(4000);
+	Sleep(4500);
 
 	++level;
 
@@ -455,6 +476,55 @@ void LevelUp()
 
 	Hero = dll::HERO::create(100.0f, scr_height / 2.0f);
 }
+void ShowRecord()
+{
+	int result = 0;
+	CheckFile(record_file, &result);
+
+	if (result == FILE_NOT_EXIST)
+	{
+		if (sound)mciSendString(L"play .\\res\\snd\\negative.wav", NULL, NULL, NULL);
+		MessageBox(bHwnd, L"Все още няма рекорд на играта !\n\nПостарай се повече", L"Липсва файл",
+			MB_OK | MB_APPLMODAL | MB_ICONEXCLAMATION);
+		return;
+	}
+
+	wchar_t rec_txt[100]{ L"НАЙ-ДОБЪР ПИЛОТ: " };
+	wchar_t saved_player[16]{ L"\0" };
+	wchar_t saved_score[5]{ L"\0" };
+
+	std::wifstream rec{ record_file };
+	rec >> result;
+	wsprintf(saved_score, L"%d", result);
+	for (int i = 0; i < 16; ++i)
+	{
+		int letter = 0;
+		rec >> letter;
+		saved_player[i] = static_cast<wchar_t>(letter);
+	}
+	rec.close();
+
+	result = 0;
+
+	wcscat_s(rec_txt, saved_player);
+	wcscat_s(rec_txt, L"\n\nСВЕТОВЕН РЕКОРД: ");
+	wcscat_s(rec_txt, saved_score);
+
+	for (int i = 0; i < 100; ++i)
+	{
+		if (rec_txt[i] != '\0')++result;
+		else break;
+	}
+
+	Draw->BeginDraw();
+	Draw->DrawBitmap(bmpIntro[0], D2D1::RectF(0, 0, scr_width, scr_height));
+	Draw->DrawTextW(rec_txt, result, midFormat, D2D1::RectF(200.0f, 250.0f, scr_width, scr_height), txtBrush);
+	Draw->EndDraw();
+
+	if (sound)mciSendString(L"play .\\res\\snd\\showrec.wav", NULL, NULL, NULL);
+
+	Sleep(4500);
+}
 
 
 INT_PTR CALLBACK DlgProc(HWND hwnd, UINT ReceivedMsg, WPARAM wParam, LPARAM lParam)
@@ -508,7 +578,7 @@ LRESULT CALLBACK WinProc(HWND hwnd, UINT ReceivedMsg, WPARAM wParam, LPARAM lPar
 			bStore = CreateMenu();
 
 			AppendMenu(bBar, MF_POPUP, (UINT_PTR)(bMain), L"Основно меню");
-			AppendMenu(bBar, MF_POPUP, (UINT_PTR)(bMain), L"Меню за данни");
+			AppendMenu(bBar, MF_POPUP, (UINT_PTR)(bStore), L"Меню за данни");
 
 			AppendMenu(bMain, MF_STRING, mNew, L"Нова игра");
 			AppendMenu(bMain, MF_STRING, mLvl, L"Следващо ниво");
@@ -673,6 +743,13 @@ LRESULT CALLBACK WinProc(HWND hwnd, UINT ReceivedMsg, WPARAM wParam, LPARAM lPar
 			SendMessage(hwnd, WM_CLOSE, NULL, NULL);
 			break;
 
+
+
+		case mHoF:
+			pause = true;
+			ShowRecord();
+			pause = false;
+			break;
 		}
 		break;
 
@@ -1383,7 +1460,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 			if (is_ok)vGuns.push_back(a_gun);
 		}
 
-		if (vEvils.size() <= 3 + level && RandIt(0, 400) == 33)
+		if (vEvils.size() < 3 + level && RandIt(0, 600) == 33)
 		{
 			float tx{ RandIt(scr_width, scr_width + 300.0f) };
 			float ty{ RandIt(sky, ground - 100.0f) };
