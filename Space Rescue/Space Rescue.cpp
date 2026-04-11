@@ -869,7 +869,7 @@ void ShowHelp()
 		if (!b3hglt)Draw->DrawTextW(L"ПОМОЩ ЗА ИГРАТА", 16, nrmFormat, b3txtRect, txtBrush);
 		else Draw->DrawTextW(L"ПОМОЩ ЗА ИГРАТА", 16, nrmFormat, b3txtRect, hgltBrush);
 
-		Draw->DrawTextW(help_txt, result, midFormat, D2D1::RectF(100.0f, 100.0f, scr_width, scr_height), txtBrush);
+		Draw->DrawTextW(help_txt, result, midFormat, D2D1::RectF(10.0f, 80.0f, scr_width, scr_height), txtBrush);
 	}
 	Draw->EndDraw();
 }
