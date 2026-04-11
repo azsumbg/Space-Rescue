@@ -329,6 +329,7 @@ void InitGame()
 	bTimer = 0;
 	level = 1;
 	score = 0;
+	hero_killed = false;
 
 	level_skipped = false;
 	civs_needed = 20;
@@ -524,6 +525,303 @@ void ShowRecord()
 	if (sound)mciSendString(L"play .\\res\\snd\\showrec.wav", NULL, NULL, NULL);
 
 	Sleep(4500);
+}
+void SaveGame()
+{
+	int result = 0;
+	CheckFile(save_file, &result);
+
+	if (result == FILE_EXIST)
+	{
+		if (sound)mciSendString(L"play .\\res\\snd\\exclamation.wav", NULL, NULL, NULL);
+		if (MessageBox(bHwnd, L"Има записана игра, която ще бъде загубена !\n\nНаистина ли да я презапиша ?", L"Презапис ?",
+			MB_YESNO | MB_APPLMODAL | MB_ICONQUESTION) == IDNO)return;
+	}
+
+	std::wofstream save{ save_file };
+
+	save << hero_killed << std::endl;
+	save << level << std::endl;
+	save << distance << std::endl;
+	save << score << std::endl;
+
+	save << level_skipped << std::endl;
+	save << sound << std::endl;
+
+	save << civs_needed << std::endl;
+	save << civs_saved << std::endl;
+
+	for (int i = 0; i < 16; ++i)save << static_cast<int>(current_player[i]) << std::endl;
+	save << name_set << std::endl;
+
+	save << Hero->start.x << std::endl;
+	save << Hero->start.y << std::endl;
+	save << Hero->lifes << std::endl;
+	save << Hero->armor << std::endl;
+	save << Hero->damage << std::endl;
+
+	save << vCivilians.size() << std::endl;
+	if (!vCivilians.empty())
+	{
+		for (int i = 0; i < vCivilians.size(); ++i)
+		{
+			save << vCivilians[i]->start.x << std::endl;
+			save << vCivilians[i]->start.y << std::endl;
+		}
+	}
+
+	save << vGuns.size() << std::endl;
+	if (!vGuns.empty())
+	{
+		for (int i = 0; i < vGuns.size(); ++i)
+		{
+			save << vGuns[i]->start.x << std::endl;
+			save << vGuns[i]->start.y << std::endl;
+			save << vGuns[i]->lifes << std::endl;
+		}
+	}
+
+	save << vEvils.size() << std::endl;
+	if (!vEvils.empty())
+	{
+		for (int i = 0; i < vEvils.size(); ++i)
+		{
+			save << vEvils[i]->start.x << std::endl;
+			save << vEvils[i]->start.y << std::endl;
+			save << vEvils[i]->lifes << std::endl;
+		}
+	}
+
+	save << vMeteors.size() << std::endl;
+	if (!vMeteors.empty())
+	{
+		for (int i = 0; i < vMeteors.size(); ++i)
+		{
+			save << static_cast<int>(vMeteors[i]->type) << std::endl;
+			save << vMeteors[i]->start.x << std::endl;
+			save << vMeteors[i]->start.y << std::endl;
+			save << vMeteors[i]->get_target_x() << std::endl;
+			save << vMeteors[i]->get_target_y() << std::endl;
+			save << vMeteors[i]->lifes << std::endl;
+		}
+	}
+
+	save << vPowerups.size() << std::endl;
+	if (!vPowerups.empty())
+	{
+		for (int i = 0; i < vPowerups.size(); ++i)
+		{
+			save << vPowerups[i]->start.x << std::endl;
+			save << vPowerups[i]->start.y << std::endl;
+		}
+	}
+
+	save.close();
+
+	if (sound)mciSendString(L"play .\\res\\snd\\save.wav", NULL, NULL, NULL);
+
+	MessageBox(bHwnd, L"Играта е запазена !", L"Запис !", MB_OK | MB_APPLMODAL | MB_ICONINFORMATION);
+}
+void LoadGame()
+{
+	int result = 0;
+	CheckFile(save_file, &result);
+
+	if (result == FILE_EXIST)
+	{
+		if (sound)mciSendString(L"play .\\res\\snd\\exclamation.wav", NULL, NULL, NULL);
+		if (MessageBox(bHwnd, L"Настоящата игра ще бъде загубена !\n\nНаистина ли да я презапиша ?", L"Презапис ?",
+			MB_YESNO | MB_APPLMODAL | MB_ICONQUESTION) == IDNO)return;
+	}
+	else
+	{
+		if (sound)mciSendString(L"play .\\res\\snd\\negative.wav", NULL, NULL, NULL);
+		MessageBox(bHwnd, L"Все още няма записана игра !\n\nПостарай се повече", L"Липсва файл",
+			MB_OK | MB_APPLMODAL | MB_ICONEXCLAMATION);
+		return;
+	}
+
+	need_field_left = false;
+	need_field_right = false;
+
+	need_ground_left = false;
+	need_ground_right = false;
+
+	if (Hero)
+		if (!FreeMem(&Hero))LogErr(L"Error freeing memory for Hero !");
+
+	if (!vFields.empty())for (int i = 0; i < vFields.size(); ++i)if (!FreeMem(&vFields[i]))
+		LogErr(L"Error freeing memory for vFields element !");
+	vFields.clear();
+
+	if (!vGrounds.empty())for (int i = 0; i < vGrounds.size(); ++i)if (!FreeMem(&vGrounds[i]))
+		LogErr(L"Error freeing memory for vGrounds element !");
+	vGrounds.clear();
+
+	if (!vCivilians.empty())for (int i = 0; i < vCivilians.size(); ++i)if (!FreeMem(&vCivilians[i]))
+		LogErr(L"Error freeing memory for vCivilians element !");
+	vCivilians.clear();
+
+	if (!vEvils.empty())for (int i = 0; i < vEvils.size(); ++i)if (!FreeMem(&vEvils[i]))
+		LogErr(L"Error freeing memory for vEvils element !");
+	vEvils.clear();
+
+	if (!vGuns.empty())for (int i = 0; i < vGuns.size(); ++i)if (!FreeMem(&vGuns[i]))
+		LogErr(L"Error freeing memory for vGuns element !");
+	vGuns.clear();
+
+	if (!vBombs.empty())for (int i = 0; i < vBombs.size(); ++i)if (!FreeMem(&vBombs[i]))
+		LogErr(L"Error freeing memory for vBombs element !");
+	vBombs.clear();
+
+	if (!vPowerups.empty())for (int i = 0; i < vPowerups.size(); ++i)if (!FreeMem(&vPowerups[i]))
+		LogErr(L"Error freeing memory for vPowerups element !");
+	vPowerups.clear();
+
+	if (!vMeteors.empty())for (int i = 0; i < vMeteors.size(); ++i)if (!FreeMem(&vMeteors[i]))
+		LogErr(L"Error freeing memory for vMeteors element !");
+	vMeteors.clear();
+
+	if (!vEvilShots.empty())for (int i = 0; i < vEvilShots.size(); ++i)if (!FreeMem(&vEvilShots[i]))
+		LogErr(L"Error freeing memory for vEvilShots element !");
+	vEvilShots.clear();
+
+	vBonuses.clear();
+	vExplosions.clear();
+
+	for (float i = -scr_width; i < 2.0f * scr_width; i += scr_width)vFields.push_back(dll::FIELDS::create(assets::field, i, 50.0f));
+	for (float i = -scr_width; i < 2.0f * scr_width; i += scr_width)
+		vGrounds.push_back(dll::FIELDS::create(assets::ground, i, scr_height - 100.0f));
+
+	std::wifstream save{ save_file };
+
+	save >> hero_killed;
+	if (hero_killed)GameOver();
+
+	save >> level;
+	save >> distance;
+	save >> score;
+
+	save >> level_skipped;
+	save >> sound;
+
+	save >> civs_needed;
+	save >> civs_saved;
+
+	for (int i = 0; i < 16; ++i)
+	{
+		int letter = 0;
+		save >> letter;
+		current_player[i] = static_cast<wchar_t>(letter);
+	}
+	save >> name_set;
+
+	float sx = 0;
+	float sy = 0;
+	save >> sx;
+	save >> sy;
+	Hero = dll::HERO::create(sx, sy);
+	save >> result;
+	Hero->lifes = result;
+	save >> result;
+	Hero->armor = result;
+	save >> result;
+	Hero->damage = result;
+
+	save >> result;
+	if (result > 0)
+	{
+		for (int i = 0; i < result; ++i)
+		{
+			float tx = 0;
+			float ty = 0;
+			save >> tx;
+			save >> ty;
+
+			vCivilians.push_back(dll::ASSETS::create(assets::civilian, tx, ty));
+		}
+	}
+
+	save >> result;
+	if (result > 0)
+	{
+		for (int i = 0; i < result; ++i)
+		{
+			float tx = 0;
+			float ty = 0;
+			int lifes = 0;
+
+			save >> tx;
+			save >> ty; 
+			save >> lifes;
+
+			vGuns.push_back(dll::GUN::create(tx, ty));
+			vGuns.back()->lifes = lifes;
+		}
+	}
+
+	save >> result;
+	if (result > 0)
+	{
+		for (int i = 0; i < result; ++i)
+		{
+			float tx = 0;
+			float ty = 0;
+			int lifes = 0;
+
+			save >> tx;
+			save >> ty;
+			save >> lifes;
+
+			vEvils.push_back(dll::EVIL::create(tx, ty));
+			vEvils.back()->lifes = lifes;
+		}
+	}
+
+	save >> result;
+	if (result > 0)
+	{
+		for (int i = 0; i < result; ++i)
+		{
+			int type = -1;
+			float tx = 0;
+			float ty = 0;
+			float ex = 0;
+			float ey = 0;
+			int lifes = 0;
+
+			save >> type;
+			save >> tx;
+			save >> ty;
+			save >> ex;
+			save >> ey;
+			save >> lifes;
+
+			vMeteors.push_back(dll::METEORS::create(static_cast<meteors>(type), tx, ty, ex, ey));
+			vMeteors.back()->lifes = lifes;
+		}
+	}
+
+	save >> result;
+	if (result > 0)
+	{
+		for (int i = 0; i < result; ++i)
+		{
+			float tx = 0;
+			float ty = 0;
+		
+			save >> tx;
+			save >> ty;
+		
+			vPowerups.push_back(dll::ASSETS::create(assets::supply, tx, ty));
+		}
+	}
+
+	save.close();
+
+	if (sound)mciSendString(L"play .\\res\\snd\\save.wav", NULL, NULL, NULL);
+
+	MessageBox(bHwnd, L"Играта е заредена !", L"Запис !", MB_OK | MB_APPLMODAL | MB_ICONINFORMATION);
 }
 
 
@@ -743,7 +1041,17 @@ LRESULT CALLBACK WinProc(HWND hwnd, UINT ReceivedMsg, WPARAM wParam, LPARAM lPar
 			SendMessage(hwnd, WM_CLOSE, NULL, NULL);
 			break;
 
+		case mSave:
+			pause = true;
+			SaveGame();
+			pause = false;
+			break;
 
+		case mLoad:
+			pause = true;
+			LoadGame();
+			pause = false;
+			break;
 
 		case mHoF:
 			pause = true;
